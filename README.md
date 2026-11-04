@@ -5,7 +5,7 @@ from scratch. Free and open — no login, nothing to install.
 
 By **Sahil Kumar** · AWS Certified Solutions Architect – Associate
 
-> 🌐 **Read it here:** https://cloudsynq.github.io/cloud-aws-iimt/
+> 🌐 **Read it here:** https://cloudsynq.github.io/cloud-aws/
 > 📚 **All courses:** https://cloudsynq.github.io/
 
 Every page is formatted to print cleanly, so any page can be saved as a PDF
@@ -18,14 +18,14 @@ with **Ctrl + P → Save as PDF**.
 | # | Topic | Material |
 |---|---|---|
 | 00 | Introduction to Cloud Computing | [Intro PDF](00-introduction/cloud-introduction.pdf) · [Terminology PDF](00-introduction/cloud-terminology.pdf) |
-| 01 | IAM — Identity & Access Management | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/01-iam/theory-notes.html) |
-| 02 | EC2 — Elastic Compute Cloud | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/02-ec2/theory-notes.html) |
-| 03 | EBS — Elastic Block Store | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/03-ebs/theory-notes.html) |
-| 04 | S3 — Simple Storage Service | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/04-s3/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws-iimt/04-s3/lab.html) |
-| 05 | VPC — Virtual Private Cloud | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/05-vpc/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws-iimt/05-vpc/lab.html) · [Screenshot guide](05-vpc/lab-guide.pdf) |
-| 06 | CloudWatch, CloudTrail & SNS | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/06-cloudwatch-cloudtrail-sns/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws-iimt/06-cloudwatch-cloudtrail-sns/lab.html) |
-| 07 | Elastic Load Balancing | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/07-elastic-load-balancing/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws-iimt/07-elastic-load-balancing/lab.html) |
-| 08 | Auto Scaling Groups | [Theory](https://cloudsynq.github.io/cloud-aws-iimt/08-auto-scaling/theory-notes.html) |
+| 01 | IAM — Identity & Access Management | [Theory](https://cloudsynq.github.io/cloud-aws/01-iam/theory-notes.html) |
+| 02 | EC2 — Elastic Compute Cloud | [Theory](https://cloudsynq.github.io/cloud-aws/02-ec2/theory-notes.html) |
+| 03 | EBS — Elastic Block Store | [Theory](https://cloudsynq.github.io/cloud-aws/03-ebs/theory-notes.html) |
+| 04 | S3 — Simple Storage Service | [Theory](https://cloudsynq.github.io/cloud-aws/04-s3/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws/04-s3/lab.html) |
+| 05 | VPC — Virtual Private Cloud | [Theory](https://cloudsynq.github.io/cloud-aws/05-vpc/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws/05-vpc/lab.html) · [Screenshot guide](05-vpc/lab-guide.pdf) |
+| 06 | CloudWatch, CloudTrail & SNS | [Theory](https://cloudsynq.github.io/cloud-aws/06-cloudwatch-cloudtrail-sns/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws/06-cloudwatch-cloudtrail-sns/lab.html) |
+| 07 | Elastic Load Balancing | [Theory](https://cloudsynq.github.io/cloud-aws/07-elastic-load-balancing/theory-notes.html) · [Lab](https://cloudsynq.github.io/cloud-aws/07-elastic-load-balancing/lab.html) |
+| 08 | Auto Scaling Groups | [Theory](https://cloudsynq.github.io/cloud-aws/08-auto-scaling/theory-notes.html) |
 
 **Coming up:** Auto Scaling lab · Route 53 · CloudFront · RDS · DynamoDB · Lambda · Cost Explorer
 
@@ -44,7 +44,7 @@ with **Ctrl + P → Save as PDF**.
 ## Structure
 
 ```
-cloud-aws-iimt/
+cloud-aws/
 ├── index.md          ← the course home page
 ├── syllabus.html     ← full syllabus with progress
 ├── resources.md      ← recommended books, docs and videos
