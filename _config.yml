@@ -1,3 +1,11 @@
-theme: jekyll-theme-cayman
 title: Cloud Computing — AWS
-description: Theory notes, hands-on labs and syllabus · by Sahil Kumar
+description: Theory notes, hands-on labs and a full syllabus for Amazon Web Services. Free and open.
+volume: Volume One · AWS
+accent: "#9a3b2f"
+accent_dark: "#e0917c"
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: "default"
