@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudWatch, CloudTrail &amp; SNS – Theory Notes</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --fg: #16191f;
+    --muted: #5a6572;
+    --light: #f7f8fa;
+    --aws: #d96a04;
+    --aws-bg: #fdf3e7;
+    --navy: #232f3e;
+    --navy-bg: #eef1f5;
+    --green: #0f7b3f;
+    --green-bg: #e9f6ec;
+    --red: #b3261e;
+    --red-bg: #fdecea;
+    --amber: #8a5300;
+    --amber-bg: #fff6e5;
+    --violet: #5b3fa8;
+    --violet-bg: #f1ecfc;
+    --border: #e2e5ea;
+    --code-bg: #1b1f26;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 40px 32px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .header {
+    background: var(--navy);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+  }
+  .header .eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #ff9900; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.25; }
+  .header p { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 5px; }
+
+  h2 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 34px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--aws-bg);
+  }
+  h2 .n { color: var(--aws); font-family: 'Fira Code', monospace; font-size: 15px; margin-right: 7px; }
+  h3 { font-size: 14.5px; font-weight: 700; margin: 24px 0 10px; color: var(--navy); }
+
+  p { margin-bottom: 11px; font-size: 13.5px; }
+  code { font-family: 'Fira Code', monospace; font-size: 12.5px; background: var(--navy-bg); color: var(--navy); padding: 1px 6px; border-radius: 3px; }
+
+  ul, ol { margin: 0 0 12px 22px; font-size: 13.5px; }
+  li { margin-bottom: 5px; }
+
+  /* ANALOGY BOX */
+  .analogy {
+    background: var(--amber-bg);
+    border: 1px solid #f0cf8a;
+    border-left: 5px solid #e0a106;
+    border-radius: 7px;
+    padding: 14px 18px;
+    margin: 14px 0 16px;
+  }
+  .analogy .tag {
+    display: block;
+    font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: var(--amber);
+    margin-bottom: 6px;
+  }
+  .analogy p { font-size: 13.5px; margin-bottom: 8px; color: #45300a; }
+  .analogy p:last-child { margin-bottom: 0; }
+  .analogy strong { color: #6b4000; }
+
+  /* KEY BOX */
+  .key {
+    background: var(--navy-bg);
+    border: 1px solid #cdd6e0;
+    border-left: 5px solid var(--navy);
+    border-radius: 7px;
+    padding: 13px 18px;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .key .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--navy); margin-bottom: 5px; }
+
+  .warn {
+    background: var(--red-bg);
+    border: 1px solid #f0b4af;
+    border-left: 5px solid #e5534b;
+    border-radius: 7px;
+    padding: 13px 18px;
+    margin: 14px 0;
+    font-size: 13.5px;
+    color: #4e1410;
+  }
+  .warn .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--red); margin-bottom: 5px; }
+
+  /* TABLES */
+  .t-scroll { overflow-x: auto; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 460px; }
+  th { background: var(--navy); color: #fff; padding: 9px 13px; text-align: left; font-weight: 600; }
+  th:first-child { border-radius: 6px 0 0 0; }
+  th:last-child { border-radius: 0 6px 0 0; }
+  td { padding: 9px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--light); }
+  tr:last-child td { border-bottom: none; }
+
+  /* FIGURES */
+  figure { margin: 18px 0 20px; }
+  .fig-scroll { overflow-x: auto; }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 440px; }
+  figcaption {
+    font-size: 12.5px; color: var(--muted);
+    text-align: center; margin-top: 10px;
+    padding: 0 12px; line-height: 1.6;
+  }
+  figcaption strong { color: var(--fg); }
+
+  /* METRIC ANATOMY */
+  .anatomy {
+    background: var(--code-bg);
+    border-radius: 7px;
+    padding: 15px 18px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12.5px;
+    line-height: 2;
+    color: #d4d4d4;
+    margin-bottom: 14px;
+    overflow-x: auto;
+  }
+  .anatomy .lbl { color: #569cd6; display: inline-block; width: 108px; }
+  .anatomy .val { color: #ce9178; }
+  .anatomy .note { color: #6a9955; }
+
+  /* STATE PILLS */
+  .states { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+  .pill { border-radius: 7px; padding: 11px 15px; font-size: 12.5px; border: 1px solid; flex: 1; min-width: 170px; }
+  .pill strong { display: block; font-family: 'Fira Code', monospace; font-size: 12px; margin-bottom: 3px; }
+  .pill.s-ok { background: var(--green-bg); border-color: #8fcfa4; color: #10401f; }
+  .pill.s-alarm { background: var(--red-bg); border-color: #e5564d; color: #4e1410; }
+  .pill.s-none { background: var(--light); border-color: var(--border); color: var(--muted); }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 34px 0; }
+
+  .footer { text-align: center; color: #98a1ad; font-size: 12px; margin-top: 38px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  @media print {
+    body { padding: 0; font-size: 11pt; max-width: none; }
+    figure, table, .analogy, .key, .warn, .states, .anatomy, .t-scroll, .fig-scroll { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    .header, th, .anatomy { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    figure svg, table { min-width: 0; }
+  }
+  @media (max-width: 560px) {
+    body { padding: 24px 16px; }
+    .states { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="eyebrow">AWS · 1st Semester · Module 08</div>
+    <h1>CloudWatch, CloudTrail, SNS &amp; Trusted Advisor</h1>
+    <p>Theory Notes — Monitoring, Auditing and Notifications in AWS</p>
+  </div>
+
+  <p>So far you have <strong>built</strong> things in AWS — users, servers, storage, networks. This module is about <strong>watching</strong> them. Once a system is running, four questions come up again and again:</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:42%">Question</th>
+      <th style="width:28%">Service</th>
+      <th>What it gives you</th>
+    </tr>
+    <tr><td>Is my server healthy right now?</td><td><strong>CloudWatch</strong></td><td>Metrics, logs and alarms</td></tr>
+    <tr><td>Who deleted my server?</td><td><strong>CloudTrail</strong></td><td>A record of every action taken</td></tr>
+    <tr><td>How do I get told immediately?</td><td><strong>SNS</strong></td><td>Email / SMS notifications</td></tr>
+    <tr><td>Am I wasting money or leaving a security hole?</td><td><strong>Trusted Advisor</strong></td><td>An automatic account check-up</td></tr>
+  </table>
+  </div>
+
+  <h2><span class="n">1.</span> The Big Picture</h2>
+
+  <div class="analogy">
+    <span class="tag">Analogy — your car</span>
+    <p>Your AWS account is a <strong>car</strong>.</p>
+    <p><strong>CloudWatch is the dashboard</strong> — the speedometer, the fuel gauge, the engine temperature light. It tells you how the car is running <em>right now</em>.</p>
+    <p><strong>CloudTrail is the logbook at the gate</strong> — it records who took the car out, at what time, and where they went.</p>
+    <p><strong>SNS is the buzzer</strong> — when the fuel gets low, something has to actually beep at you.</p>
+    <p><strong>Trusted Advisor is the service centre</strong> — once in a while a mechanic checks everything and hands you a report.</p>
+  </div>
+
+  <p>These four services work as two separate chains. Learn them as two chains and the whole module becomes easy:</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 820 390" role="img" aria-label="Two chains: a monitoring chain where an EC2 instance sends CPU metrics to CloudWatch, which watches an alarm that triggers an SNS topic that emails you; and an auditing chain where an IAM user's API call is recorded by CloudTrail into Event History and optionally an S3 bucket." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- LANE 1 LABEL -->
+      <text x="14" y="26" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor" letter-spacing="1.2">CHAIN 1 — MONITORING</text>
+      <text x="14" y="44" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.6">“What is happening?”</text>
+
+      <!-- EC2 -->
+      <rect x="14" y="64" width="124" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="76" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">EC2 Instance</text>
+      <text x="76" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">your server</text>
+
+      <line x1="140" y1="93" x2="196" y2="93" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="168" y="83" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">CPU %</text>
+
+      <!-- CLOUDWATCH -->
+      <rect x="198" y="64" width="134" height="58" rx="7" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="265" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">CloudWatch</text>
+      <text x="265" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">stores the numbers</text>
+
+      <line x1="334" y1="93" x2="390" y2="93" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="362" y="83" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">watches</text>
+
+      <!-- ALARM -->
+      <rect x="392" y="64" width="124" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="454" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">Alarm</text>
+      <text x="454" y="106" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.7">CPU &gt; 30% ?</text>
+
+      <line x1="518" y1="93" x2="574" y2="93" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="546" y="83" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">fires</text>
+
+      <!-- SNS -->
+      <rect x="576" y="64" width="112" height="58" rx="7" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="632" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">SNS Topic</text>
+      <text x="632" y="106" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">the buzzer</text>
+
+      <line x1="690" y1="93" x2="740" y2="93" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+
+      <!-- EMAIL -->
+      <rect x="742" y="64" width="64" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="774" y="88" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">You</text>
+      <text x="774" y="105" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.6">email</text>
+
+      <!-- SEPARATOR -->
+      <line x1="14" y1="175" x2="806" y2="175" stroke="currentColor" stroke-width="1" opacity="0.18"/>
+
+      <!-- LANE 2 LABEL -->
+      <text x="14" y="212" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor" letter-spacing="1.2">CHAIN 2 — AUDITING</text>
+      <text x="14" y="230" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.6">“Who did it?”</text>
+
+      <!-- USER -->
+      <rect x="14" y="250" width="124" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="76" y="274" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">IAM User</text>
+      <text x="76" y="292" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">you, or a teammate</text>
+
+      <line x1="140" y1="279" x2="196" y2="279" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="168" y="269" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">clicks</text>
+
+      <!-- API CALL -->
+      <rect x="198" y="250" width="134" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="265" y="274" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">AWS API Call</text>
+      <text x="265" y="292" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.7">TerminateInstances</text>
+
+      <line x1="334" y1="279" x2="390" y2="279" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="362" y="269" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">recorded</text>
+
+      <!-- CLOUDTRAIL -->
+      <rect x="392" y="250" width="124" height="58" rx="7" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="454" y="274" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">CloudTrail</text>
+      <text x="454" y="292" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">the logbook</text>
+
+      <line x1="518" y1="279" x2="574" y2="279" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="546" y="269" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">kept in</text>
+
+      <!-- EVENT HISTORY -->
+      <rect x="576" y="250" width="112" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="632" y="272" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Event History</text>
+      <text x="632" y="290" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.6">last 90 days</text>
+
+      <line x1="690" y1="279" x2="740" y2="279" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+
+      <!-- S3 -->
+      <rect x="742" y="250" width="64" height="58" rx="7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="774" y="274" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">S3</text>
+      <text x="774" y="291" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.6">forever</text>
+
+      <text x="410" y="350" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">dashed = optional, only if you create a Trail</text>
+    </svg>
+    </div>
+    <figcaption><strong>Two independent chains.</strong> The monitoring chain turns a number into an email. The auditing chain turns a click into a permanent record. Nothing in chain 1 talks to chain 2.</figcaption>
+  </figure>
+
+  <div class="key">
+    <span class="tag">The one line to remember</span>
+    <strong>CloudWatch tells you WHAT is happening. CloudTrail tells you WHO did it.</strong> Almost every exam question on this module is testing whether you know this difference.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">2.</span> Amazon CloudWatch</h2>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the dashboard</span>
+    <p>When you sit in a car you never open the bonnet to check the engine. You look at the <strong>dashboard</strong>. Speed, fuel, temperature — all the important numbers in one place, updating continuously.</p>
+    <p>CloudWatch is that dashboard for your AWS resources.</p>
+  </div>
+
+  <p>CloudWatch does three things. Learn them in this order:</p>
+
+  <ol>
+    <li><strong>Metrics</strong> — collects numbers over time (CPU usage, network traffic)</li>
+    <li><strong>Logs</strong> — collects text output from applications</li>
+    <li><strong>Alarms</strong> — reacts automatically when a number crosses a line you set</li>
+  </ol>
+
+  <h3>2.1 Metrics — how a metric is identified</h3>
+
+  <p>Every metric in CloudWatch has the same four parts. Once you can read this shape, you can find any metric in the console:</p>
+
+  <div class="anatomy">
+<span class="lbl">Namespace</span> <span class="val">AWS/EC2</span>                  <span class="note">← which service sent it</span>
+<span class="lbl">Metric name</span> <span class="val">CPUUtilization</span>         <span class="note">← what is being measured</span>
+<span class="lbl">Dimension</span> <span class="val">InstanceId = i-0abc123</span> <span class="note">← which exact resource</span>
+<span class="lbl">Period</span> <span class="val">5 minutes</span>                 <span class="note">← one reading every 5 min</span>
+  </div>
+
+  <p>How often CloudWatch takes a reading depends on which monitoring you choose:</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:28%">Type</th>
+      <th style="width:22%">Reading every</th>
+      <th style="width:16%">Cost</th>
+      <th>Notes</th>
+    </tr>
+    <tr>
+      <td><strong>Basic monitoring</strong></td>
+      <td>5 minutes</td>
+      <td>Free</td>
+      <td>This is the default on every EC2 instance</td>
+    </tr>
+    <tr>
+      <td><strong>Detailed monitoring</strong></td>
+      <td>1 minute</td>
+      <td>Paid</td>
+      <td>Enable it per instance when you need faster reaction</td>
+    </tr>
+  </table>
+  </div>
+
+  <h3>2.2 Logs</h3>
+
+  <p>CloudWatch Logs stores text in three levels:</p>
+
+  <p><code>Log Group</code> &nbsp;→&nbsp; <code>Log Stream</code> &nbsp;→&nbsp; <code>Log Events</code></p>
+
+  <p>A <strong>Log Group</strong> is one application or one log file, for example <code>/var/log/httpd</code>. A <strong>Log Stream</strong> is one source inside that group — normally one server. <strong>Log Events</strong> are the individual lines of text.</p>
+
+  <h3>2.3 Alarms — the three states</h3>
+
+  <div class="analogy">
+    <span class="tag">Analogy — a fever thermometer</span>
+    <p>You decide the line: anything above 100°F is a fever.</p>
+    <p>Reading is 98.4 → <strong>normal</strong>. Reading is 102 → <strong>fever, do something</strong>. Thermometer battery is dead and shows nothing → <strong>you cannot tell</strong>.</p>
+    <p>A CloudWatch alarm has exactly those three states.</p>
+  </div>
+
+  <div class="states">
+    <div class="pill s-ok"><strong>OK</strong>The metric is inside the threshold. Nothing to do.</div>
+    <div class="pill s-alarm"><strong>ALARM</strong>The threshold was crossed. Actions fire now.</div>
+    <div class="pill s-none"><strong>INSUFFICIENT_DATA</strong>Not enough readings to decide yet.</div>
+  </div>
+
+  <p>An alarm watches <strong>one</strong> metric against <strong>one</strong> threshold. Here is what that looks like over time:</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 700 290" role="img" aria-label="A line graph of CPU utilisation over time with a dashed threshold line at 30 percent. The line stays low and green while the alarm is in OK state, rises above the threshold where it turns red and the alarm state becomes ALARM and an email is sent, then falls back below the threshold and returns to green and OK." xmlns="http://www.w3.org/2000/svg">
+      <!-- AXES -->
+      <line x1="62" y1="38" x2="62" y2="212" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="62" y1="212" x2="652" y2="212" stroke="currentColor" stroke-width="1.5"/>
+
+      <!-- Y LABELS -->
+      <text x="54" y="44" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.65">100%</text>
+      <text x="54" y="173" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.65">30%</text>
+      <text x="54" y="216" text-anchor="end" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.65">0%</text>
+      <text x="20" y="130" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor" transform="rotate(-90 20 130)" text-anchor="middle">CPU</text>
+      <text x="357" y="236" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor">time →</text>
+
+      <!-- THRESHOLD -->
+      <line x1="62" y1="169" x2="652" y2="169" stroke="#d96a04" stroke-width="1.6" stroke-dasharray="6 4"/>
+      <text x="648" y="162" text-anchor="end" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#d96a04">threshold = 30%</text>
+
+      <!-- OK SEGMENT 1 -->
+      <polyline points="62,212 110,209 158,211 206,207 232,196" fill="none" stroke="#1f9d55" stroke-width="2.6"/>
+      <!-- ALARM SEGMENT -->
+      <polyline points="232,196 252,120 280,78 330,74 380,82 420,76 452,88" fill="none" stroke="#e5534b" stroke-width="2.6"/>
+      <!-- OK SEGMENT 2 -->
+      <polyline points="452,88 476,152 500,200 548,208 600,206 652,209" fill="none" stroke="#1f9d55" stroke-width="2.6"/>
+
+      <!-- CROSSING MARKERS -->
+      <circle cx="245" cy="169" r="4" fill="#e5534b"/>
+      <circle cx="466" cy="169" r="4" fill="#1f9d55"/>
+
+      <!-- STATE BANDS -->
+      <text x="150" y="266" text-anchor="middle" font-family="Fira Code, monospace" font-size="11.5" font-weight="500" fill="#1f9d55">OK</text>
+      <text x="350" y="266" text-anchor="middle" font-family="Fira Code, monospace" font-size="11.5" font-weight="500" fill="#e5534b">ALARM</text>
+      <text x="560" y="266" text-anchor="middle" font-family="Fira Code, monospace" font-size="11.5" font-weight="500" fill="#1f9d55">OK</text>
+      <line x1="62" y1="250" x2="243" y2="250" stroke="#1f9d55" stroke-width="3"/>
+      <line x1="247" y1="250" x2="464" y2="250" stroke="#e5534b" stroke-width="3"/>
+      <line x1="468" y1="250" x2="652" y2="250" stroke="#1f9d55" stroke-width="3"/>
+
+      <!-- EMAIL CALLOUT -->
+      <text x="300" y="122" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#e5534b">email sent the moment it crosses</text>
+    </svg>
+    </div>
+    <figcaption><strong>The alarm fires on the crossing, not on the high value.</strong> The email goes out at the moment the line crosses the threshold upward. When the value falls back below, the alarm returns to OK on its own — no action needed from you.</figcaption>
+  </figure>
+
+  <p>When an alarm fires, it can do more than send an email:</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:30%">Action</th>
+      <th>What happens</th>
+    </tr>
+    <tr><td><strong>SNS notification</strong></td><td>Sends an email or SMS — this is what we will build in the lab</td></tr>
+    <tr><td><strong>EC2 action</strong></td><td>Stops, terminates, reboots or recovers the instance automatically</td></tr>
+    <tr><td><strong>Auto Scaling action</strong></td><td>Adds or removes servers — you will see this in the next module</td></tr>
+  </table>
+  </div>
+
+  <h3>2.4 Important — CloudWatch cannot see memory by default</h3>
+
+  <div class="warn">
+    <span class="tag">Remember this</span>
+    An EC2 instance sends <strong>CPU, network and disk I/O</strong> to CloudWatch automatically. It does <strong>not</strong> send <strong>memory (RAM) usage</strong> or <strong>free disk space</strong>. For those you must install the <strong>CloudWatch Agent</strong> inside the operating system.
+  </div>
+
+  <div class="analogy">
+    <span class="tag">Analogy — a house from the street</span>
+    <p>Stand outside a house. You can see the <strong>electricity meter spinning</strong> and the <strong>water meter running</strong> — so you know roughly how busy the house is. You can count people going in and out.</p>
+    <p>But you <strong>cannot see how full the fridge is</strong>. That is inside. Somebody inside the house has to come to the window and tell you.</p>
+    <p>That somebody is the <strong>CloudWatch Agent</strong>.</p>
+  </div>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 700 300" role="img" aria-label="Diagram showing CloudWatch outside an EC2 instance. A solid arrow from the instance boundary to CloudWatch is labelled CPU, network and disk I O, available automatically. Inside the instance is the guest operating system holding memory used and free disk space, and a dashed arrow from inside out to CloudWatch is labelled requires the CloudWatch Agent." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- CLOUDWATCH -->
+      <rect x="16" y="112" width="130" height="66" rx="8" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="81" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">CloudWatch</text>
+      <text x="81" y="158" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.65">watches from outside</text>
+
+      <!-- EC2 OUTER -->
+      <rect x="282" y="34" width="394" height="232" rx="10" fill="none" stroke="currentColor" stroke-width="2"/>
+      <text x="479" y="58" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">EC2 Instance (the virtual machine)</text>
+
+      <!-- SEEN FROM OUTSIDE -->
+      <text x="300" y="86" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor" opacity="0.8">Visible from outside:</text>
+      <text x="300" y="104" font-family="Fira Code, monospace" font-size="11" fill="currentColor">CPU · Network · Disk I/O</text>
+
+      <!-- GUEST OS INNER -->
+      <rect x="300" y="122" width="358" height="124" rx="8" fill="currentColor" fill-opacity="0.05" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="318" y="146" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Guest Operating System</text>
+      <text x="318" y="172" font-family="Fira Code, monospace" font-size="11" fill="currentColor">Memory used:  6.2 / 8 GB</text>
+      <text x="318" y="192" font-family="Fira Code, monospace" font-size="11" fill="currentColor">Free disk:    55 GB</text>
+      <text x="318" y="222" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.65">only the OS inside knows these numbers</text>
+
+      <!-- SOLID ARROW OUT -->
+      <line x1="280" y1="128" x2="150" y2="128" stroke="currentColor" stroke-width="2" marker-end="url(#ar2)"/>
+      <text x="215" y="120" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="currentColor">automatic</text>
+
+      <!-- DASHED ARROW OUT -->
+      <path d="M 300 196 L 216 196 L 216 162 L 150 162" fill="none" stroke="#d96a04" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar2)" color="#d96a04"/>
+      <text x="240" y="213" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#d96a04">needs the Agent</text>
+
+      <text x="350" y="290" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">solid = works out of the box · dashed = you must install something</text>
+    </svg>
+    </div>
+    <figcaption><strong>Why memory is missing.</strong> CloudWatch sits outside the virtual machine, so it can only measure what the outside of the machine reveals. RAM and free disk space exist inside the guest OS, so an agent has to be installed in there to report them out.</figcaption>
+  </figure>
+
+  <hr class="divider">
+
+  <h2><span class="n">3.</span> AWS CloudTrail</h2>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the register at the society gate</span>
+    <p>Every visitor who enters your building writes in the register at the gate: <strong>name, flat number, time in, time out</strong>. Nobody is stopped — the register simply records what happened.</p>
+    <p>A month later, if something goes missing, you open the register and find out who came that day.</p>
+    <p>CloudTrail is that register for your AWS account.</p>
+  </div>
+
+  <div class="key">
+    <span class="tag">The idea behind CloudTrail</span>
+    <strong>Every action in AWS is an API call.</strong> Clicking a button in the console, running an AWS CLI command, or calling the SDK from code — all three become the same API call underneath. CloudTrail records those calls.
+  </div>
+
+  <p>Each recorded event answers five questions:</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:22%">Question</th><th style="width:30%">Field</th><th>Example</th></tr>
+    <tr><td><strong>Who?</strong></td><td>User identity</td><td><code>student-sahil</code></td></tr>
+    <tr><td><strong>What?</strong></td><td>Event name</td><td><code>TerminateInstances</code></td></tr>
+    <tr><td><strong>When?</strong></td><td>Event time</td><td>29 Oct 2026, 14:32:08 UTC</td></tr>
+    <tr><td><strong>From where?</strong></td><td>Source IP address</td><td><code>49.36.182.7</code></td></tr>
+    <tr><td><strong>On what?</strong></td><td>Resource</td><td><code>i-0abc123def456</code></td></tr>
+  </table>
+  </div>
+
+  <h3>3.1 Three facts you must remember</h3>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:34%">Fact</th><th>Detail</th></tr>
+    <tr>
+      <td><strong>Event History is already on</strong></td>
+      <td>CloudTrail records management events by default, free, and keeps the last <strong>90 days</strong>. You do not have to switch anything on.</td>
+    </tr>
+    <tr>
+      <td><strong>Need more than 90 days?</strong></td>
+      <td>Create a <strong>Trail</strong>. It delivers the log files into an <strong>S3 bucket</strong>, where they can be kept as long as you like.</td>
+    </tr>
+    <tr>
+      <td><strong>Data events are off by default</strong></td>
+      <td><strong>Management events</strong> (launched a server, created a bucket) are recorded. <strong>Data events</strong> (read one S3 object, invoked a Lambda) are not — there would be millions of them and it costs extra.</td>
+    </tr>
+  </table>
+  </div>
+
+  <h3>3.2 CloudWatch vs CloudTrail — know this table</h3>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:26%">&nbsp;</th>
+      <th>CloudWatch</th>
+      <th>CloudTrail</th>
+    </tr>
+    <tr><td><strong>Answers</strong></td><td>What is happening?</td><td>Who did it?</td></tr>
+    <tr><td><strong>Records</strong></td><td>Performance metrics and logs</td><td>API calls and account activity</td></tr>
+    <tr><td><strong>Used for</strong></td><td>Monitoring and alerting</td><td>Auditing and security investigation</td></tr>
+    <tr><td><strong>Typical question</strong></td><td>“Why is the website slow?”</td><td>“Who stopped the server last night?”</td></tr>
+    <tr><td><strong>Car analogy</strong></td><td>The dashboard</td><td>The logbook at the gate</td></tr>
+  </table>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">4.</span> Amazon SNS — Simple Notification Service</h2>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the class WhatsApp group</span>
+    <p>A teacher has to inform 60 parents that tomorrow is a holiday. She does not message each parent one by one. She posts <strong>one message in the group</strong> and all 60 receive it.</p>
+    <p>The <strong>group</strong> is the SNS <strong>Topic</strong>. The <strong>parents</strong> are the <strong>Subscribers</strong>. Sending one message that reaches everybody is called <strong>fan-out</strong>.</p>
+    <p>And just like a group, a parent must <strong>join</strong> before they receive anything.</p>
+  </div>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 680 312" role="img" aria-label="A CloudWatch alarm publishes one message to an SNS topic, and the topic fans the same message out to four subscribers: an email address, an SMS number, a Lambda function and an SQS queue." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- PUBLISHER -->
+      <rect x="14" y="120" width="138" height="60" rx="8" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="83" y="145" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">CloudWatch</text>
+      <text x="83" y="163" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">Alarm</text>
+
+      <line x1="154" y1="150" x2="222" y2="150" stroke="currentColor" stroke-width="1.8" marker-end="url(#ar3)"/>
+      <text x="188" y="140" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">publishes</text>
+      <text x="188" y="168" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">1 message</text>
+
+      <!-- TOPIC -->
+      <rect x="224" y="114" width="136" height="72" rx="8" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="292" y="142" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">SNS Topic</text>
+      <text x="292" y="162" text-anchor="middle" font-family="Fira Code, monospace" font-size="11" fill="currentColor" opacity="0.75">MyAlertTopic</text>
+
+      <!-- FAN OUT ARROWS -->
+      <path d="M 362 134 C 410 134 420 48 468 48" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+      <path d="M 362 144 C 410 144 420 118 468 118" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+      <path d="M 362 156 C 410 156 420 188 468 188" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+      <path d="M 362 166 C 410 166 420 258 468 258" fill="none" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+      <!-- SUBSCRIBERS -->
+      <rect x="470" y="26" width="180" height="44" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="486" y="53" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Email — your inbox</text>
+
+      <rect x="470" y="96" width="180" height="44" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="486" y="123" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">SMS — your phone</text>
+
+      <rect x="470" y="166" width="180" height="44" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="486" y="193" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Lambda function</text>
+
+      <rect x="470" y="236" width="180" height="44" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="486" y="263" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">SQS queue</text>
+
+      <text x="560" y="302" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor" opacity="0.7">all four get the same message</text>
+    </svg>
+    </div>
+    <figcaption><strong>Fan-out.</strong> The alarm publishes once. SNS delivers the same message to every subscriber, in whatever form each one wants. Adding a fifth subscriber needs no change to the alarm.</figcaption>
+  </figure>
+
+  <div class="warn">
+    <span class="tag">You will hit this in the lab</span>
+    After you add an email subscription, AWS sends a <strong>confirmation email</strong>. Until you open it and click <strong>Confirm subscription</strong>, the status stays <strong>“Pending confirmation”</strong> and <strong>no notifications will arrive at all</strong>. Check your spam folder too.
+  </div>
+
+  <h3>SNS vs SQS — in one line</h3>
+  <p><strong>SNS pushes</strong> the message out to subscribers the moment it arrives. <strong>SQS</strong> holds messages in a queue and the application <strong>pulls</strong> them when it is ready. Push versus pull.</p>
+
+  <hr class="divider">
+
+  <h2><span class="n">5.</span> AWS Trusted Advisor</h2>
+
+  <div class="analogy">
+    <span class="tag">Analogy — car servicing</span>
+    <p>Once a year you take the car to the service centre. The mechanic checks the engine, brakes, tyres, oil and AC, then hands you a report: <em>“brakes fine, tyres worn, replace oil.”</em></p>
+    <p>Trusted Advisor does that for your AWS account, automatically, across five areas.</p>
+  </div>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:30%">Category</th>
+      <th>Example of what it finds</th>
+    </tr>
+    <tr><td><strong>Cost Optimization</strong></td><td>An EC2 instance running all month with almost no CPU usage — you are paying for nothing</td></tr>
+    <tr><td><strong>Performance</strong></td><td>An instance running at full load that needs a bigger size</td></tr>
+    <tr><td><strong>Security</strong></td><td>A security group open to <code>0.0.0.0/0</code>, or MFA missing on the root account</td></tr>
+    <tr><td><strong>Fault Tolerance</strong></td><td>No EBS snapshots taken, or everything placed in a single Availability Zone</td></tr>
+    <tr><td><strong>Service Limits</strong></td><td>You have used 80% of the VPCs allowed in this region</td></tr>
+  </table>
+  </div>
+
+  <div class="key">
+    <span class="tag">Note for the lab</span>
+    On a free or Basic support plan only a limited set of checks is available. The rest appear locked and need a paid Business or Enterprise support plan. This is normal — do not think your account is broken.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">6.</span> Quick Revision</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:22%">Service</th>
+      <th style="width:24%">One-line job</th>
+      <th style="width:26%">Analogy</th>
+      <th>Must remember</th>
+    </tr>
+    <tr>
+      <td><strong>CloudWatch</strong></td>
+      <td>Monitors performance</td>
+      <td>Car dashboard</td>
+      <td>Memory needs the CloudWatch Agent</td>
+    </tr>
+    <tr>
+      <td><strong>CloudTrail</strong></td>
+      <td>Records who did what</td>
+      <td>Register at the gate</td>
+      <td>Event History = 90 days, free</td>
+    </tr>
+    <tr>
+      <td><strong>SNS</strong></td>
+      <td>Sends notifications</td>
+      <td>Class WhatsApp group</td>
+      <td>Email must be confirmed first</td>
+    </tr>
+    <tr>
+      <td><strong>Trusted Advisor</strong></td>
+      <td>Audits the whole account</td>
+      <td>Car servicing report</td>
+      <td>Five categories</td>
+    </tr>
+  </table>
+  </div>
+
+  <h2><span class="n">7.</span> Exam Questions</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:52%">Question</th><th>Answer</th></tr>
+    <tr><td>Which service monitors performance?</td><td>CloudWatch</td></tr>
+    <tr><td>Which service tells you who performed an action?</td><td>CloudTrail</td></tr>
+    <tr><td>How long does CloudTrail Event History keep data, free of cost?</td><td>90 days</td></tr>
+    <tr><td>How do you keep CloudTrail logs for longer than that?</td><td>Create a Trail that delivers to an S3 bucket</td></tr>
+    <tr><td>Are CloudTrail data events recorded by default?</td><td>No — only management events</td></tr>
+    <tr><td>Name the three CloudWatch alarm states.</td><td>OK, ALARM, INSUFFICIENT_DATA</td></tr>
+    <tr><td>What is the default metric period for an EC2 instance?</td><td>5 minutes (1 minute with detailed monitoring)</td></tr>
+    <tr><td>Does EC2 report memory usage to CloudWatch by default?</td><td>No — the CloudWatch Agent must be installed</td></tr>
+    <tr><td>What must happen before an SNS email subscription works?</td><td>The recipient must click “Confirm subscription”</td></tr>
+    <tr><td>Difference between SNS and SQS?</td><td>SNS pushes to subscribers; SQS is pulled by the application</td></tr>
+    <tr><td>What is fan-out?</td><td>Publishing one message that SNS delivers to all subscribers</td></tr>
+    <tr><td>Name the five Trusted Advisor categories.</td><td>Cost Optimization, Performance, Security, Fault Tolerance, Service Limits</td></tr>
+  </table>
+  </div>
+
+  <div class="footer">
+    IIMT University, Meerut &nbsp;·&nbsp; Cloud Computing (AWS), 1st Semester &nbsp;·&nbsp; Module 08 Theory Notes
+  </div>
+
+</body>
+</html>

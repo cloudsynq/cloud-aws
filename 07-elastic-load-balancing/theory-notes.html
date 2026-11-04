@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elastic Load Balancing – Theory Notes</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --fg: #16191f;
+    --muted: #5a6572;
+    --light: #f7f8fa;
+    --aws: #d96a04;
+    --aws-bg: #fdf3e7;
+    --navy: #232f3e;
+    --navy-bg: #eef1f5;
+    --green: #0f7b3f;
+    --green-bg: #e9f6ec;
+    --red: #b3261e;
+    --red-bg: #fdecea;
+    --amber: #8a5300;
+    --amber-bg: #fff6e5;
+    --border: #e2e5ea;
+    --code-bg: #1b1f26;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 40px 32px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  .header {
+    background: var(--navy);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+  }
+  .header .eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #ff9900; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.25; }
+  .header p { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 5px; }
+
+  h2 {
+    font-size: 17px; font-weight: 700; color: var(--navy);
+    margin: 36px 0 12px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--aws-bg);
+  }
+  h2 .n { color: var(--aws); font-family: 'Fira Code', monospace; font-size: 15px; margin-right: 7px; }
+  h3 { font-size: 14.5px; font-weight: 700; margin: 24px 0 10px; color: var(--navy); }
+
+  p { margin-bottom: 11px; font-size: 13.5px; }
+  code { font-family: 'Fira Code', monospace; font-size: 12.5px; background: var(--navy-bg); color: var(--navy); padding: 1px 6px; border-radius: 3px; }
+
+  ul, ol { margin: 0 0 12px 22px; font-size: 13.5px; }
+  li { margin-bottom: 5px; }
+
+  .analogy {
+    background: var(--amber-bg); border: 1px solid #f0cf8a;
+    border-left: 5px solid #e0a106; border-radius: 7px;
+    padding: 14px 18px; margin: 15px 0 17px;
+  }
+  .analogy .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--amber); margin-bottom: 6px; }
+  .analogy p { font-size: 13.5px; margin-bottom: 8px; color: #45300a; }
+  .analogy p:last-child { margin-bottom: 0; }
+  .analogy strong { color: #6b4000; }
+
+  .scenario {
+    background: var(--green-bg); border: 1px solid #a8d8ba;
+    border-left: 5px solid var(--green); border-radius: 7px;
+    padding: 14px 18px; margin: 15px 0 17px;
+  }
+  .scenario .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--green); margin-bottom: 6px; }
+  .scenario p { font-size: 13.5px; margin-bottom: 8px; color: #10401f; }
+  .scenario p:last-child { margin-bottom: 0; }
+  .scenario strong { color: #0a3318; }
+
+  .key {
+    background: var(--navy-bg); border: 1px solid #cdd6e0;
+    border-left: 5px solid var(--navy); border-radius: 7px;
+    padding: 13px 18px; margin: 14px 0; font-size: 13.5px;
+  }
+  .key .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--navy); margin-bottom: 5px; }
+
+  .warn {
+    background: var(--red-bg); border: 1px solid #f0b4af;
+    border-left: 5px solid #e5534b; border-radius: 7px;
+    padding: 13px 18px; margin: 14px 0; font-size: 13.5px; color: #4e1410;
+  }
+  .warn .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--red); margin-bottom: 5px; }
+
+  .extra {
+    background: var(--light); border: 1px solid var(--border);
+    border-radius: 7px; padding: 13px 18px; margin: 14px 0; font-size: 13.5px;
+  }
+  .extra .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 5px; }
+
+  .t-scroll { overflow-x: auto; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
+  th { background: var(--navy); color: #fff; padding: 9px 13px; text-align: left; font-weight: 600; }
+  th:first-child { border-radius: 6px 0 0 0; }
+  th:last-child { border-radius: 0 6px 0 0; }
+  td { padding: 9px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--light); }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+
+  figure { margin: 20px 0 22px; }
+  .fig-scroll { overflow-x: auto; }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 440px; }
+  figcaption { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 10px; padding: 0 12px; line-height: 1.6; }
+  figcaption strong { color: var(--fg); }
+
+  .code-wrap { margin: 12px 0 15px; }
+  .code-label { font-size: 10.5px; font-weight: 700; background: var(--navy); color: #fff; display: inline-block; padding: 3px 11px; border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: .5px; }
+  .code-block {
+    background: var(--code-bg); color: #d4d4d4;
+    border-radius: 0 6px 6px 6px; padding: 15px 18px;
+    font-family: 'Fira Code', monospace; font-size: 12.5px;
+    line-height: 1.85; white-space: pre; overflow-x: auto;
+  }
+  .cmt { color: #6a9955; }
+  .cmd { color: #ce9178; }
+  .kw { color: #569cd6; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; }
+
+  .footer { text-align: center; color: #98a1ad; font-size: 12px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  @media print {
+    body { padding: 0; font-size: 11pt; max-width: none; }
+    figure, table, .analogy, .scenario, .key, .warn, .extra, .t-scroll, .fig-scroll, .code-wrap { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    .header, th, .code-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    figure svg, table { min-width: 0; }
+  }
+  @media (max-width: 560px) { body { padding: 24px 16px; } }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="eyebrow">AWS · 1st Semester · Module 09</div>
+    <h1>Elastic Load Balancing (ELB)</h1>
+    <p>Theory Notes — ALB, NLB, Target Groups and Health Checks</p>
+  </div>
+
+  <!-- ===== 1. THE PROBLEM ===== -->
+  <h2><span class="n">1.</span> Start With the Problem</h2>
+
+  <p>Until now you have launched <strong>one</strong> EC2 instance and put a website on it. That works perfectly — until two things happen.</p>
+
+  <div class="scenario">
+    <span class="tag">Real situation — university result day</span>
+    <p>Your college puts the semester results on a website. On a normal day about <strong>100 students</strong> visit it. One small server handles that easily.</p>
+    <p>Result day arrives. <strong>50,000 students</strong> open the site in the same ten minutes.</p>
+    <p>The single server runs out of memory and stops responding. The website is down — for everyone. And it goes down at exactly the moment it matters most.</p>
+  </div>
+
+  <p>There are two separate problems hiding in that story:</p>
+
+  <ol>
+    <li><strong>Too much traffic for one server.</strong> One machine has a limit.</li>
+    <li><strong>One server means one point of failure.</strong> If it dies, the whole site dies with it.</li>
+  </ol>
+
+  <p>Adding more servers alone does not fix this. If you have three servers, users still have to know <em>which one</em> to open. Nobody is going to type <code>server2.college.ac.in</code> because server 1 is busy.</p>
+
+  <p>You need something that sits in front of all the servers and sends each visitor to a free one. That something is a <strong>Load Balancer</strong>.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 316" role="img" aria-label="Comparison. On the left, without a load balancer, fifty thousand users all hit one server which becomes overloaded and the website goes down. On the right, with a load balancer, the same users reach a load balancer which spreads them across three servers, so one server failing does not take the site down." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- DIVIDER -->
+      <line x1="382" y1="10" x2="382" y2="300" stroke="currentColor" stroke-width="1" opacity="0.18"/>
+
+      <!-- ===== LEFT : BEFORE ===== -->
+      <text x="186" y="26" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">WITHOUT a Load Balancer</text>
+
+      <rect x="116" y="48" width="140" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="186" y="70" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">50,000 users</text>
+      <text x="186" y="86" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.65">all at once</text>
+
+      <line x1="186" y1="96" x2="186" y2="146" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrA)"/>
+
+      <rect x="126" y="150" width="120" height="58" rx="7" fill="#e5534b" fill-opacity="0.12" stroke="#e5534b" stroke-width="2"/>
+      <text x="186" y="175" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">ONE Server</text>
+      <text x="186" y="193" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="#b3261e" font-weight="600">overloaded</text>
+
+      <text x="186" y="244" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#b3261e">Website DOWN</text>
+      <text x="186" y="264" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.7">for every single student</text>
+
+      <!-- ===== RIGHT : AFTER ===== -->
+      <text x="572" y="26" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">WITH a Load Balancer</text>
+
+      <rect x="502" y="48" width="140" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="572" y="70" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">50,000 users</text>
+      <text x="572" y="86" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.65">all at once</text>
+
+      <line x1="572" y1="96" x2="572" y2="122" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrA)"/>
+
+      <rect x="494" y="124" width="156" height="48" rx="7" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="572" y="153" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Load Balancer</text>
+
+      <line x1="540" y1="172" x2="458" y2="204" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrA)"/>
+      <line x1="572" y1="172" x2="572" y2="204" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrA)"/>
+      <line x1="604" y1="172" x2="686" y2="204" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrA)"/>
+
+      <rect x="408" y="208" width="100" height="50" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="458" y="229" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">Server 1</text>
+      <text x="458" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#0f7b3f" font-weight="600">healthy</text>
+
+      <rect x="522" y="208" width="100" height="50" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="572" y="229" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">Server 2</text>
+      <text x="572" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#0f7b3f" font-weight="600">healthy</text>
+
+      <rect x="636" y="208" width="100" height="50" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="686" y="229" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">Server 3</text>
+      <text x="686" y="246" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#0f7b3f" font-weight="600">healthy</text>
+
+      <text x="572" y="286" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#0f7b3f">Website stays UP</text>
+      <text x="572" y="304" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.7">even if one server dies</text>
+    </svg>
+    </div>
+    <figcaption><strong>The same 50,000 users, two different outcomes.</strong> The load balancer does not make any single server faster — it simply makes sure no single server has to carry everything alone.</figcaption>
+  </figure>
+
+  <hr class="divider">
+
+  <!-- ===== 2. WHAT IS A LOAD BALANCER ===== -->
+  <h2><span class="n">2.</span> What a Load Balancer Actually Is</h2>
+
+  <div class="key">
+    <span class="tag">Definition</span>
+    A <strong>Load Balancer</strong> is a service that receives all incoming traffic and distributes it across several backend servers, so that no single server is overloaded and no single server failure can bring the application down.
+  </div>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the bank counter manager</span>
+    <p>You walk into a bank. There are five counters open. You do not walk around checking which clerk looks free — there is a <strong>manager standing at the entrance</strong> who looks at all five counters and tells you: <em>“Counter 3, please.”</em></p>
+    <p>You do not know or care which counter you get. You just want your work done.</p>
+    <p>Now suppose the clerk at counter 2 goes for tea. The manager simply stops sending people to counter 2 and keeps using the other four. <strong>Customers never find out that anything happened.</strong></p>
+    <p>That manager is the Load Balancer. The counters are your EC2 instances.</p>
+  </div>
+
+  <p>In AWS this service is called <strong>Elastic Load Balancing</strong>, shortened to <strong>ELB</strong>. “Elastic” means it grows and shrinks by itself as traffic changes — you never have to resize it.</p>
+
+  <h3>The two things it gives you</h3>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:30%">Benefit</th>
+      <th>What it means in practice</th>
+    </tr>
+    <tr>
+      <td><strong>Scalability</strong></td>
+      <td>Traffic that one server cannot handle gets shared across many servers. Need more capacity? Add another server to the group.</td>
+    </tr>
+    <tr>
+      <td><strong>High Availability</strong></td>
+      <td>If a server crashes, the load balancer notices and stops sending traffic to it. The remaining servers carry on. Users see no error.</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="scenario">
+    <span class="tag">Real situation — updating a live website</span>
+    <p>Your website is running on three servers behind a load balancer and you need to install an update.</p>
+    <p>Without a load balancer you would have to take the site offline, update it, and put it back — users get an error page the whole time.</p>
+    <p>With a load balancer you remove <strong>Server 1</strong> from the group, update it, and add it back. Then Server 2. Then Server 3.</p>
+    <p>At every moment at least two servers are serving traffic. <strong>The website is never down and no user notices the update happening.</strong> This is called a rolling update, and it is one of the biggest practical reasons companies use load balancers.</p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 3. ANATOMY ===== -->
+  <h2><span class="n">3.</span> The Parts of a Load Balancer</h2>
+
+  <p>When you create a load balancer in AWS you are really creating four connected things. You will build exactly these in the lab, so learn the names now.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 404" role="img" aria-label="Vertical stack showing the parts of a load balancer. Users reach the load balancer, which has a DNS name. The load balancer has a listener on port 80. The listener forwards to a target group which runs health checks. The target group contains three EC2 instances." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- USERS -->
+      <rect x="210" y="14" width="180" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="300" y="42" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">Users on the internet</text>
+
+      <line x1="300" y1="62" x2="300" y2="84" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrB)"/>
+
+      <!-- LOAD BALANCER -->
+      <rect x="160" y="88" width="280" height="58" rx="8" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="300" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">1 · Load Balancer</text>
+      <text x="300" y="131" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">my-alb-123.elb.amazonaws.com</text>
+      <text x="466" y="111" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.75">The public entry point.</text>
+      <text x="466" y="128" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.75">AWS gives it a DNS name.</text>
+
+      <line x1="300" y1="146" x2="300" y2="170" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrB)"/>
+
+      <!-- LISTENER -->
+      <rect x="180" y="174" width="240" height="46" rx="8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="300" y="196" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">2 · Listener</text>
+      <text x="300" y="212" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">HTTP : 80</text>
+      <text x="466" y="193" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.75">Which port and protocol</text>
+      <text x="466" y="210" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.75">to listen on.</text>
+
+      <line x1="300" y1="220" x2="300" y2="244" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrB)"/>
+
+      <!-- TARGET GROUP -->
+      <rect x="160" y="248" width="280" height="58" rx="8" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="300" y="272" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">3 · Target Group</text>
+      <text x="300" y="291" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">health check:  /  every 30s</text>
+      <text x="466" y="271" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.75">The pool of servers,</text>
+      <text x="466" y="288" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.75">plus the health check rules.</text>
+
+      <line x1="240" y1="306" x2="160" y2="338" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrB)"/>
+      <line x1="300" y1="306" x2="300" y2="338" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrB)"/>
+      <line x1="360" y1="306" x2="440" y2="338" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrB)"/>
+
+      <!-- TARGETS -->
+      <rect x="100" y="342" width="120" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="160" y="370" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">EC2 Target</text>
+
+      <rect x="240" y="342" width="120" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="300" y="370" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">EC2 Target</text>
+
+      <rect x="380" y="342" width="120" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="440" y="370" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">EC2 Target</text>
+
+      <text x="540" y="370" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor" opacity="0.75">4 · Targets</text>
+    </svg>
+    </div>
+    <figcaption><strong>Build order, top to bottom.</strong> In the console you create the target group first, register the instances into it, then create the load balancer with a listener that forwards to that group.</figcaption>
+  </figure>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:24%">Part</th><th>What it does</th></tr>
+    <tr><td><strong>Load Balancer</strong></td><td>The manager itself. Faces the internet and receives every request.</td></tr>
+    <tr><td><strong>Listener</strong></td><td>Says which port and protocol to accept, for example HTTP on port 80. Without a listener the load balancer accepts nothing.</td></tr>
+    <tr><td><strong>Target Group</strong></td><td>The list of servers that can receive traffic, plus the health check settings for them.</td></tr>
+    <tr><td><strong>Targets</strong></td><td>The actual EC2 instances inside the target group.</td></tr>
+  </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 4. HEALTH CHECKS ===== -->
+  <h2><span class="n">4.</span> Health Checks — How It Knows a Server Is Dead</h2>
+
+  <p>A load balancer cannot read your mind. It has no way of knowing that Server 3 crashed at 3 a.m. So it keeps asking.</p>
+
+  <div class="analogy">
+    <span class="tag">Analogy — roll call in class</span>
+    <p>A teacher calls out names every morning. If a student answers “present”, the teacher gives them work. If a student does not answer for several days in a row, the teacher marks them absent and stops giving them work.</p>
+    <p>The day that student comes back and answers again, the teacher starts giving them work again — <strong>automatically, with no special request needed.</strong></p>
+    <p>That is exactly a health check. The load balancer calls out to every server on a schedule and listens for an answer.</p>
+  </div>
+
+  <p>Here is what the load balancer actually does: it sends an HTTP request to a path you choose — by default just <code>/</code> — to every registered target, roughly <strong>every 30 seconds</strong>.</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:36%">The server replies with</th><th>The load balancer marks it</th><th>Gets traffic?</th></tr>
+    <tr><td>HTTP 200 OK</td><td class="ok">Healthy</td><td class="ok">Yes</td></tr>
+    <tr><td>An error, or no reply at all</td><td class="no">Unhealthy</td><td class="no">No</td></tr>
+  </table>
+  </div>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 700 304" role="img" aria-label="A load balancer sends health check requests to three servers. Servers one and two reply and are marked healthy, so traffic flows to them along solid lines. Server three does not reply and is marked unhealthy, so its line is dashed and red and no traffic is sent to it." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- LB -->
+      <rect x="22" y="120" width="158" height="58" rx="8" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="101" y="145" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Load Balancer</text>
+      <text x="101" y="163" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">asks every 30s</text>
+
+      <!-- PATHS -->
+      <path d="M 184 138 C 290 138 330 55 434 55" fill="none" stroke="#1f9d55" stroke-width="2" marker-end="url(#arrC)" color="#1f9d55"/>
+      <path d="M 184 149 L 434 149" fill="none" stroke="#1f9d55" stroke-width="2" marker-end="url(#arrC)" color="#1f9d55"/>
+      <path d="M 184 162 C 290 162 330 243 434 243" fill="none" stroke="#e5534b" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrC)" color="#e5534b"/>
+
+      <text x="306" y="128" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="600" fill="currentColor" opacity="0.8">traffic flows</text>
+
+      <!-- SERVERS -->
+      <rect x="436" y="28" width="176" height="54" rx="7" fill="none" stroke="#1f9d55" stroke-width="1.8"/>
+      <text x="524" y="50" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Server 1</text>
+      <text x="524" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#0f7b3f">HEALTHY — replies 200</text>
+
+      <rect x="436" y="122" width="176" height="54" rx="7" fill="none" stroke="#1f9d55" stroke-width="1.8"/>
+      <text x="524" y="144" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Server 2</text>
+      <text x="524" y="162" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#0f7b3f">HEALTHY — replies 200</text>
+
+      <rect x="436" y="216" width="176" height="54" rx="7" fill="#e5534b" fill-opacity="0.1" stroke="#e5534b" stroke-width="1.8"/>
+      <text x="524" y="238" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Server 3</text>
+      <text x="524" y="256" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b3261e">UNHEALTHY — no reply</text>
+
+      <text x="524" y="292" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.7">no traffic is sent here until it recovers</text>
+    </svg>
+    </div>
+    <figcaption><strong>Nobody has to intervene.</strong> The crashed server is removed from rotation within about a minute, and it is added back automatically the moment its health check starts passing again.</figcaption>
+  </figure>
+
+  <div class="scenario">
+    <span class="tag">Real situation — the 3 a.m. crash</span>
+    <p>One of your three servers runs out of disk space at 3 a.m. and the web server process dies.</p>
+    <p>Within about a minute the load balancer's health check fails, that server is pulled out of the target group, and the other two take all the traffic.</p>
+    <p>You fix it in the morning. <strong>No user ever saw an error and nobody had to be woken up.</strong></p>
+  </div>
+
+  <div class="warn">
+    <span class="tag">The most common lab failure</span>
+    If your web server has no page at the health check path, <strong>every target becomes unhealthy</strong>, and the load balancer has nowhere to send traffic. The browser then shows <strong>HTTP 503 — Service Temporarily Unavailable</strong>.
+    <br><br>
+    So the fix for a 503 is almost always: make sure <code>index.html</code> exists on the instances and the web server is actually running.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 5. TYPES ===== -->
+  <h2><span class="n">5.</span> Types of Load Balancer</h2>
+
+  <p>AWS gives you more than one kind, because different applications need different things. The difference comes down to <strong>how deeply the load balancer looks at your traffic</strong>.</p>
+
+  <div class="analogy">
+    <span class="tag">Analogy — receptionist vs courier</span>
+    <p>A <strong>receptionist</strong> opens your letter, reads what it is about, and decides: <em>“This is a complaint — send it to the complaints department. This is a bill — send it to accounts.”</em> Reading takes a moment, but the letter reaches exactly the right place.</p>
+    <p>A <strong>courier</strong> never opens anything. He looks at the address on the sealed envelope and delivers it. He has no idea what is inside — which is why he is extremely fast.</p>
+    <p>The <strong>ALB is the receptionist</strong>. The <strong>NLB is the courier</strong>.</p>
+  </div>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:26%">&nbsp;</th>
+      <th>ALB — Application</th>
+      <th>NLB — Network</th>
+      <th>CLB — Classic</th>
+    </tr>
+    <tr><td><strong>Works at layer</strong></td><td>Layer 7 (HTTP/HTTPS)</td><td>Layer 4 (TCP/UDP)</td><td>Layer 4 and 7</td></tr>
+    <tr><td><strong>Looks inside the request?</strong></td><td class="ok">Yes — reads the URL</td><td class="no">No — just forwards</td><td>Partly</td></tr>
+    <tr><td><strong>Can route by URL path</strong></td><td class="ok">Yes</td><td class="no">No</td><td class="no">No</td></tr>
+    <tr><td><strong>Speed</strong></td><td>Fast</td><td class="ok">Extremely fast</td><td>Slowest</td></tr>
+    <tr><td><strong>Gives a static IP?</strong></td><td class="no">No</td><td class="ok">Yes</td><td class="no">No</td></tr>
+    <tr><td><strong>Use it for</strong></td><td><strong>Websites and APIs — most cases</strong></td><td>Gaming, streaming, very high traffic</td><td>Old applications only</td></tr>
+  </table>
+  </div>
+
+  <div class="key">
+    <span class="tag">How to choose, in one line</span>
+    If your application speaks <strong>HTTP or HTTPS</strong>, use an <strong>ALB</strong>. That covers almost everything you will ever build. Choose NLB only when you need extreme speed or a fixed IP address. <strong>Never choose CLB for new work</strong> — it is the old generation and AWS recommends moving off it.
+  </div>
+
+  <h3>Why the ALB being able to "read" matters</h3>
+
+  <p>Because an ALB understands HTTP, it can look at the URL and send different parts of the same website to different groups of servers. This is called <strong>path-based routing</strong>.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 740 330" role="img" aria-label="One domain name points to one Application Load Balancer. The load balancer reads the URL path and forwards requests for slash to the web server group, slash api to the API server group, and slash images to the image server group." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="280" y="12" width="180" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="370" y="40" text-anchor="middle" font-family="Fira Code, monospace" font-size="12" font-weight="500" fill="currentColor">shop.example.com</text>
+
+      <line x1="370" y1="60" x2="370" y2="82" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrD)"/>
+
+      <rect x="262" y="86" width="216" height="56" rx="8" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="370" y="110" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Application Load Balancer</text>
+      <text x="370" y="128" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">reads the URL path</text>
+
+      <line x1="300" y1="142" x2="150" y2="204" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrD)"/>
+      <line x1="370" y1="142" x2="370" y2="204" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrD)"/>
+      <line x1="440" y1="142" x2="590" y2="204" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrD)"/>
+
+      <text x="196" y="166" text-anchor="middle" font-family="Fira Code, monospace" font-size="11" font-weight="500" fill="#d96a04">/</text>
+      <text x="396" y="176" font-family="Fira Code, monospace" font-size="11" font-weight="500" fill="#d96a04">/api/*</text>
+      <text x="548" y="166" text-anchor="middle" font-family="Fira Code, monospace" font-size="11" font-weight="500" fill="#d96a04">/images/*</text>
+
+      <rect x="50" y="208" width="200" height="60" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="150" y="232" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Web Servers</text>
+      <text x="150" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">the shop pages</text>
+
+      <rect x="270" y="208" width="200" height="60" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="370" y="232" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">API Servers</text>
+      <text x="370" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">mobile app traffic</text>
+
+      <rect x="490" y="208" width="200" height="60" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="590" y="232" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Image Servers</text>
+      <text x="590" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">photos and files</text>
+
+      <text x="370" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">One domain · one load balancer · three separate server pools</text>
+    </svg>
+    </div>
+    <figcaption><strong>This is what Layer 7 buys you.</strong> An NLB could not do this — it never sees the URL, only the IP address and port. Each pool can also be scaled on its own, so a sudden rush for images does not slow down the checkout pages.</figcaption>
+  </figure>
+
+  <div class="scenario">
+    <span class="tag">Real situation — an online shop</span>
+    <p>Image files are heavy but simple to serve. Checkout and payment are light on bandwidth but need serious processing. Mobile app requests go to a completely different codebase.</p>
+    <p>With path-based routing all three live under <strong>one domain and one load balancer</strong>, but run on three independent sets of servers. If the image servers get overwhelmed during a sale, <strong>checkout keeps working normally.</strong></p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 6. DNS NAME ===== -->
+  <h2><span class="n">6.</span> A Load Balancer Has a Name, Not an IP</h2>
+
+  <p>When you create a load balancer, AWS does not hand you an IP address. It gives you a DNS name that looks like this:</p>
+
+  <div class="code-wrap">
+    <div class="code-label">What AWS gives you</div>
+    <div class="code-block">my-first-alb-1847263910.us-east-1.elb.amazonaws.com</div>
+  </div>
+
+  <p>Students always go hunting for the IP address and cannot find one. There is a good reason for that.</p>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the shop name board</span>
+    <p>A famous sweet shop in your city has been running for forty years. In that time it has moved buildings three times — different street, different address each time.</p>
+    <p>Nobody says <em>“meet me at plot number 47-B.”</em> Everybody says <em>“meet me at Sharma Sweets.”</em> <strong>The name stays constant even though the address keeps changing.</strong></p>
+    <p>A load balancer works the same way. Behind the scenes AWS adds and removes machines as traffic changes, so the underlying IP addresses keep changing. The DNS name never does.</p>
+  </div>
+
+  <div class="key">
+    <span class="tag">This is why Route 53 exists</span>
+    Your users are not going to type <code>my-first-alb-1847263910.us-east-1.elb.amazonaws.com</code>. You point your real domain — <code>shop.example.com</code> — at that load balancer name using <strong>Route 53</strong>, which is the next topic in this module.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 7. SECURITY GROUPS ===== -->
+  <h2><span class="n">7.</span> Security Groups — Two Layers, Not One</h2>
+
+  <p>Once a load balancer sits in front of your servers, there are now <strong>two</strong> doors to configure, not one.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 740 234" role="img" aria-label="Traffic from the internet reaches the load balancer, whose security group allows port 80 from anywhere. The load balancer then reaches the EC2 instances, whose security group allows port 80 only from the load balancer's security group, not from the internet." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="14" y="92" width="110" height="50" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="69" y="122" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="currentColor">Internet</text>
+
+      <line x1="126" y1="117" x2="204" y2="117" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrE)"/>
+      <text x="165" y="107" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.8">:80</text>
+
+      <!-- ALB SG -->
+      <rect x="208" y="48" width="170" height="140" rx="9" fill="none" stroke="#d96a04" stroke-width="1.6" stroke-dasharray="6 4"/>
+      <text x="293" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#d96a04">ALB Security Group</text>
+      <text x="293" y="174" text-anchor="middle" font-family="Fira Code, monospace" font-size="9.5" fill="currentColor" opacity="0.75">allow 80 from 0.0.0.0/0</text>
+
+      <rect x="226" y="92" width="134" height="52" rx="7" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="293" y="123" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Load Balancer</text>
+
+      <line x1="382" y1="117" x2="462" y2="117" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrE)"/>
+      <text x="422" y="107" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.8">:80</text>
+
+      <!-- EC2 SG -->
+      <rect x="466" y="48" width="260" height="140" rx="9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="6 4"/>
+      <text x="596" y="68" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="currentColor">EC2 Security Group</text>
+      <text x="596" y="174" text-anchor="middle" font-family="Fira Code, monospace" font-size="9.5" fill="currentColor" opacity="0.75">allow 80 from the ALB's security group</text>
+
+      <rect x="484" y="92" width="110" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="539" y="123" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">EC2-1</text>
+
+      <rect x="604" y="92" width="110" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="659" y="123" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">EC2-2</text>
+
+      <text x="370" y="218" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.7">The servers are reachable only through the load balancer — never directly from the internet.</text>
+    </svg>
+    </div>
+    <figcaption><strong>The second rule is the important one.</strong> Instead of typing an IP range into the EC2 security group, you select the load balancer's security group itself. AWS then allows that traffic no matter how the load balancer's IPs change.</figcaption>
+  </figure>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:30%">Security group on</th><th style="width:34%">Allow port 80 from</th><th>Why</th></tr>
+    <tr>
+      <td><strong>The load balancer</strong></td>
+      <td><code>0.0.0.0/0</code> — anywhere</td>
+      <td>It is the public front door. Everyone must be able to reach it.</td>
+    </tr>
+    <tr>
+      <td><strong>The EC2 instances</strong></td>
+      <td><strong>The load balancer's security group</strong></td>
+      <td>The servers should only ever be reached through the load balancer, so nobody can bypass it.</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="warn">
+    <span class="tag">A mistake that still "works"</span>
+    If you open port 80 on the EC2 instances to <code>0.0.0.0/0</code>, the website will load and everything will look fine — so students assume it is correct.
+    <br><br>
+    But now anyone who discovers an instance's public IP can hit that server <strong>directly</strong>, skipping the load balancer, its health checks and its rules completely. Always point the EC2 rule at the load balancer's security group.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 8. AZ REQUIREMENT ===== -->
+  <h2><span class="n">8.</span> Two Availability Zones Are Compulsory</h2>
+
+  <p>When you create an ALB, AWS forces you to select <strong>at least two subnets, in two different Availability Zones</strong>. You cannot create it with only one.</p>
+
+  <div class="key">
+    <span class="tag">Why AWS insists</span>
+    An Availability Zone is a separate physical data centre. If the whole zone loses power and your load balancer existed only there, the load balancer itself would disappear — and a load balancer that can die is useless for high availability. Spreading it across two zones means one data centre can fail completely and your site stays online.
+  </div>
+
+  <div class="scenario">
+    <span class="tag">Real situation — the flooded data centre</span>
+    <p>A company runs everything in <code>us-east-1a</code>. A power failure takes that zone offline. Their servers, and the load balancer in front of them, all go down together.</p>
+    <p>A second company runs the same application across <code>us-east-1a</code> and <code>us-east-1b</code>. When zone <strong>a</strong> fails, health checks mark those servers unhealthy and <strong>all traffic shifts to zone b within about a minute.</strong> Their customers notice nothing.</p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 9. EXTRAS ===== -->
+  <h2><span class="n">9.</span> Two More Terms You Will Hear</h2>
+
+  <h3>Sticky sessions</h3>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the same waiter</span>
+    <p>You sit down in a restaurant and a waiter takes your order. Twenty minutes later you ask for water — and a <strong>completely different waiter</strong> arrives who knows nothing about your table or your order.</p>
+    <p>Annoying. So restaurants keep one waiter assigned to your table for the whole meal.</p>
+  </div>
+
+  <p>Some applications store your shopping cart or login session in the memory of <em>one</em> server. If the load balancer sends your next click to a different server, that server has never heard of you — your cart appears empty and you get logged out.</p>
+
+  <p><strong>Sticky sessions</strong> solve this. The ALB puts a small cookie in your browser so every request from you keeps going back to the same server for as long as the session lasts.</p>
+
+  <div class="extra">
+    <span class="tag">Good to know</span>
+    Sticky sessions are a workaround, not a design goal. A better-built application stores sessions in a shared place — a database or a cache — so that <em>any</em> server can serve <em>any</em> user. You will see this idea again when you study ElastiCache.
+  </div>
+
+  <h3>Cross-zone load balancing</h3>
+
+  <p>Suppose zone <strong>a</strong> has 4 servers and zone <strong>b</strong> has 1. Should traffic be split 50–50 between the two zones, which would overload that single server, or spread evenly across all 5 servers?</p>
+
+  <p>Spreading evenly across every server regardless of zone is called <strong>cross-zone load balancing</strong>. On an ALB it is always on, so you do not have to think about it. It is simply the reason an ALB distributes traffic so evenly.</p>
+
+  <hr class="divider">
+
+  <!-- ===== 10. REVISION ===== -->
+  <h2><span class="n">10.</span> Quick Revision</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:28%">Term</th><th style="width:34%">Meaning</th><th>Analogy</th></tr>
+    <tr><td><strong>Load Balancer</strong></td><td>Spreads traffic across many servers</td><td>Bank counter manager</td></tr>
+    <tr><td><strong>Listener</strong></td><td>The port and protocol it accepts on</td><td>Which door is open</td></tr>
+    <tr><td><strong>Target Group</strong></td><td>The pool of servers plus health rules</td><td>The list of open counters</td></tr>
+    <tr><td><strong>Health Check</strong></td><td>Regular “are you alive?” request</td><td>Morning roll call</td></tr>
+    <tr><td><strong>ALB</strong></td><td>Layer 7 — reads the URL and routes on it</td><td>Receptionist who reads the letter</td></tr>
+    <tr><td><strong>NLB</strong></td><td>Layer 4 — forwards without looking inside</td><td>Courier with a sealed envelope</td></tr>
+    <tr><td><strong>Sticky session</strong></td><td>Keeps one user on one server</td><td>The same waiter all meal</td></tr>
+  </table>
+  </div>
+
+  <h2><span class="n">11.</span> Exam Questions</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:54%">Question</th><th>Answer</th></tr>
+    <tr><td>What does ELB stand for?</td><td>Elastic Load Balancing</td></tr>
+    <tr><td>Name the two main benefits of a load balancer.</td><td>Scalability and high availability</td></tr>
+    <tr><td>Which load balancer works at Layer 7?</td><td>ALB — Application Load Balancer</td></tr>
+    <tr><td>Which load balancer works at Layer 4?</td><td>NLB — Network Load Balancer</td></tr>
+    <tr><td>Which one can route based on the URL path?</td><td>ALB only</td></tr>
+    <tr><td>Which one gives you a static IP address?</td><td>NLB</td></tr>
+    <tr><td>Which one should you use for a normal website?</td><td>ALB</td></tr>
+    <tr><td>What is a target group?</td><td>The set of servers that receive traffic, with its health check settings</td></tr>
+    <tr><td>What does a health check do?</td><td>Sends a request to each target and removes any that do not reply correctly</td></tr>
+    <tr><td>Does an ELB give you an IP address?</td><td>No — it gives a DNS name</td></tr>
+    <tr><td>Minimum number of Availability Zones for an ALB?</td><td>Two</td></tr>
+    <tr><td>What should the EC2 security group allow port 80 from?</td><td>The load balancer's security group</td></tr>
+    <tr><td>Browser shows HTTP 503 — likely cause?</td><td>All targets are unhealthy</td></tr>
+    <tr><td>What are sticky sessions for?</td><td>Keeping one user's requests going to the same server</td></tr>
+  </table>
+  </div>
+
+  <div class="footer">
+    IIMT University, Meerut &nbsp;·&nbsp; Cloud Computing (AWS), 1st Semester &nbsp;·&nbsp; Module 09 — Elastic Load Balancing
+  </div>
+
+</body>
+</html>

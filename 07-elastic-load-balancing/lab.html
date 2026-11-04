@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Load Balancer Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --fg: #16191f;
+    --muted: #5a6572;
+    --light: #f7f8fa;
+    --aws: #d96a04;
+    --aws-bg: #fdf3e7;
+    --navy: #232f3e;
+    --navy-bg: #eef1f5;
+    --green: #0f7b3f;
+    --green-bg: #e9f6ec;
+    --red: #b3261e;
+    --red-bg: #fdecea;
+    --amber: #8a5300;
+    --amber-bg: #fff6e5;
+    --border: #e2e5ea;
+    --code-bg: #1b1f26;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg); color: var(--fg);
+    font-size: 14px; line-height: 1.7;
+    padding: 40px 32px; max-width: 880px; margin: 0 auto;
+  }
+
+  .header { background: var(--navy); border-radius: 10px; padding: 22px 26px; margin-bottom: 16px; }
+  .header .eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #ff9900; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.25; }
+  .header p { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 5px; }
+
+  .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .meta-item { background: var(--light); border: 1px solid var(--border); border-radius: 7px; padding: 9px 14px; font-size: 12.5px; flex: 1; min-width: 150px; }
+  .meta-item span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
+  .meta-item strong { font-size: 13px; }
+
+  h2 {
+    font-size: 17px; font-weight: 700; color: var(--navy);
+    margin: 34px 0 12px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--aws-bg);
+    display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  }
+  h2 .n { color: var(--aws); font-family: 'Fira Code', monospace; font-size: 15px; }
+  h2 .time { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted); background: var(--light); border: 1px solid var(--border); border-radius: 20px; padding: 2px 11px; white-space: nowrap; }
+  h3 { font-size: 14.5px; font-weight: 700; margin: 24px 0 10px; color: var(--navy); }
+
+  p { margin-bottom: 11px; font-size: 13.5px; }
+  code { font-family: 'Fira Code', monospace; font-size: 12.5px; background: var(--navy-bg); color: var(--navy); padding: 1px 6px; border-radius: 3px; }
+
+  ul, ol { margin: 0 0 12px 22px; font-size: 13.5px; }
+  li { margin-bottom: 5px; }
+
+  figure { margin: 18px 0 20px; }
+  .fig-scroll { overflow-x: auto; }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 440px; }
+  figcaption { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 10px; padding: 0 12px; line-height: 1.6; }
+  figcaption strong { color: var(--fg); }
+
+  .step {
+    display: flex; gap: 15px; align-items: flex-start;
+    margin-bottom: 12px; padding: 15px 17px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--light);
+  }
+  .step-num {
+    background: var(--aws); color: #fff; font-weight: 700; font-size: 13px;
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .step-body { min-width: 0; flex: 1; }
+  .step h4 { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
+  .step p { font-size: 13px; color: var(--muted); margin: 0 0 7px; }
+  .step p:last-child { margin-bottom: 0; }
+  .step ul { margin: 5px 0 7px 18px; font-size: 13px; color: var(--muted); }
+  .step ul strong, .step p strong { color: var(--fg); }
+  .nav { font-family: 'Fira Code', monospace; font-size: 11.5px; background: #fff; border: 1px solid var(--border); color: var(--aws); padding: 3px 9px; border-radius: 4px; display: inline-block; }
+
+  .shot {
+    display: inline-block; margin-top: 8px;
+    background: var(--navy-bg); border: 1px dashed #9fb0c4; border-radius: 5px;
+    padding: 5px 11px; font-size: 11.5px; color: var(--navy); font-weight: 500;
+  }
+  .shot b { font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: .07em; }
+
+  .code-wrap { margin: 10px 0 14px; }
+  .code-label { font-size: 10.5px; font-weight: 700; background: var(--navy); color: #fff; display: inline-block; padding: 3px 11px; border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: .5px; }
+  .code-block {
+    background: var(--code-bg); color: #d4d4d4;
+    border-radius: 0 6px 6px 6px; padding: 15px 18px;
+    font-family: 'Fira Code', monospace; font-size: 12.5px;
+    line-height: 1.85; white-space: pre; overflow-x: auto;
+  }
+  .cmt { color: #6a9955; }
+  .cmd { color: #ce9178; }
+  .kw { color: #569cd6; }
+  .str { color: #ce9178; }
+
+  .out {
+    background: #0d1117; border: 1px solid #238636; border-radius: 7px;
+    padding: 14px 18px; font-family: 'Fira Code', monospace; font-size: 12.5px;
+    color: #3fb950; line-height: 1.8; margin: 11px 0; white-space: pre-wrap;
+  }
+  .out-title { font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 700; color: #3fb950; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 7px; }
+
+  .callout { border-radius: 7px; padding: 13px 17px; font-size: 13px; margin: 13px 0; border: 1px solid; border-left-width: 5px; }
+  .callout .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 5px; }
+  .callout.warn { background: var(--amber-bg); border-color: #e0a106; color: #45300a; }
+  .callout.warn .tag { color: var(--amber); }
+  .callout.stop { background: var(--red-bg); border-color: #e5534b; color: #4e1410; }
+  .callout.stop .tag { color: var(--red); }
+  .callout.ok { background: var(--green-bg); border-color: #8fcfa4; color: #10401f; }
+  .callout.ok .tag { color: var(--green); }
+  .callout.note { background: var(--navy-bg); border-color: var(--navy); color: #1d2733; }
+  .callout.note .tag { color: var(--navy); }
+
+  .t-scroll { overflow-x: auto; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 470px; }
+  th { background: var(--navy); color: #fff; padding: 9px 13px; text-align: left; font-weight: 600; }
+  th:first-child { border-radius: 6px 0 0 0; }
+  th:last-child { border-radius: 0 6px 0 0; }
+  td { padding: 9px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--light); }
+  tr:last-child td { border-bottom: none; }
+  .fill { color: var(--muted); font-family: 'Fira Code', monospace; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  .footer { text-align: center; color: #98a1ad; font-size: 12px; margin-top: 38px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  @media print {
+    body { padding: 0; font-size: 11pt; max-width: none; }
+    .step, table, .code-wrap, .callout, .t-scroll, figure, .fig-scroll, .meta, .out { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    .header, th, .code-block, .out { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    figure svg, table { min-width: 0; }
+  }
+  @media (max-width: 560px) { body { padding: 24px 16px; } h2 .time { margin-left: 0; } }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="eyebrow">AWS · 1st Semester · Module 09 · Lab 04</div>
+    <h1>Lab — Build a Load Balancer With Two Servers</h1>
+    <p>Application Load Balancer · Target Groups · Health Checks · Failover Test</p>
+  </div>
+
+  <div class="meta">
+    <div class="meta-item"><span>Time</span><strong>70–75 minutes</strong></div>
+    <div class="meta-item"><span>Cost</span><strong>Free tier</strong></div>
+    <div class="meta-item"><span>Region</span><strong>N. Virginia (us-east-1)</strong></div>
+  </div>
+
+  <h2><span class="n">1.</span> What You Are Building <span class="time">read first — 5 min</span></h2>
+
+  <p>Two web servers, each showing its own name on a web page. In front of them, an Application Load Balancer. When you refresh the browser, you will see the server name <strong>change</strong> — proof that your traffic is being spread across both machines.</p>
+
+  <p>Then you will deliberately break one server and watch the load balancer notice and route around it.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 392" role="img" aria-label="Lab architecture. Users on the internet reach an Application Load Balancer whose security group allows port 80 from anywhere. The load balancer forwards to a target group named web-targets, which contains two EC2 instances whose security group allows port 80 only from the load balancer's security group." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="lbA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="290" y="12" width="180" height="44" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="380" y="39" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">Your browser</text>
+
+      <line x1="380" y1="58" x2="380" y2="82" stroke="currentColor" stroke-width="1.6" marker-end="url(#lbA)"/>
+
+      <!-- ALB SG -->
+      <rect x="230" y="78" width="300" height="96" rx="9" fill="none" stroke="#d96a04" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <rect x="250" y="98" width="260" height="52" rx="7" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="380" y="121" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Application Load Balancer</text>
+      <text x="380" y="139" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.75">my-first-alb · 2 AZs</text>
+      <text x="380" y="166" text-anchor="middle" font-family="Fira Code, monospace" font-size="9.5" fill="#d96a04" font-weight="500">ALB-SG : allow 80 from 0.0.0.0/0</text>
+
+      <line x1="380" y1="178" x2="380" y2="200" stroke="currentColor" stroke-width="1.6" marker-end="url(#lbA)"/>
+
+      <rect x="268" y="202" width="224" height="50" rx="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="380" y="224" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Target Group</text>
+      <text x="380" y="241" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.75">web-targets · health check /</text>
+
+      <line x1="340" y1="252" x2="268" y2="290" stroke="currentColor" stroke-width="1.5" marker-end="url(#lbA)"/>
+      <line x1="420" y1="252" x2="492" y2="290" stroke="currentColor" stroke-width="1.5" marker-end="url(#lbA)"/>
+
+      <!-- WEB SG -->
+      <rect x="140" y="272" width="480" height="96" rx="9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4"/>
+
+      <rect x="172" y="292" width="186" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="265" y="314" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">EC2 — Web Server 1</text>
+      <text x="265" y="331" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.75">Apache + index.html</text>
+
+      <rect x="402" y="292" width="186" height="52" rx="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="495" y="314" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">EC2 — Web Server 2</text>
+      <text x="495" y="331" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.75">Apache + index.html</text>
+
+      <text x="380" y="360" text-anchor="middle" font-family="Fira Code, monospace" font-size="9.5" fill="currentColor" opacity="0.8" font-weight="500">Web-SG : allow 80 from ALB-SG only</text>
+
+      <text x="380" y="386" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">dashed boxes = security groups</text>
+    </svg>
+    </div>
+    <figcaption><strong>Build it from the bottom up is tempting, but do not.</strong> Create the security groups first, because the instances need one and the load balancer needs the other.</figcaption>
+  </figure>
+
+  <div class="callout note">
+    <span class="tag">Before you start</span>
+    Make sure the region selector at the top-right says <strong>N. Virginia (us-east-1)</strong>. Everything in this lab must be in the same region, and we will use the <strong>default VPC</strong> that already exists in your account — do not create a new VPC.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">2.</span> Part 1 — Create Two Security Groups <span class="time">10 min</span></h2>
+
+  <p>You need two: one for the load balancer, one for the servers. Create the load balancer's group first, because the servers' group has to point at it.</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>Create ALB-SG — the public door</h4>
+      <p>EC2 → left menu → <strong>Security Groups</strong> → <strong>Create security group</strong></p>
+      <ul>
+        <li>Name: <code>ALB-SG</code></li>
+        <li>Description: <code>Allows web traffic from the internet</code></li>
+        <li>VPC: leave the <strong>default VPC</strong> selected</li>
+      </ul>
+      <p>Under <strong>Inbound rules</strong> click <strong>Add rule</strong>:</p>
+      <ul>
+        <li>Type: <strong>HTTP</strong> &nbsp;(port 80 fills in by itself)</li>
+        <li>Source: <strong>Anywhere-IPv4</strong> → <code>0.0.0.0/0</code></li>
+      </ul>
+      <p>Click <strong>Create security group</strong>.</p>
+      <span class="nav">EC2 → Security Groups → Create security group</span>
+      <div class="shot"><b>Screenshot 1</b> — ALB-SG with its HTTP rule</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>Create Web-SG — the private door</h4>
+      <p>Click <strong>Create security group</strong> again.</p>
+      <ul>
+        <li>Name: <code>Web-SG</code></li>
+        <li>Description: <code>Allows traffic only from the load balancer</code></li>
+      </ul>
+      <p>Add <strong>two</strong> inbound rules:</p>
+      <ul>
+        <li>Rule 1 — Type: <strong>HTTP</strong> · Source: click the search box and <strong>select <code>ALB-SG</code></strong> from the dropdown (not an IP address)</li>
+        <li>Rule 2 — Type: <strong>SSH</strong> · Source: <strong>Anywhere-IPv4</strong> — you need this to log in later</li>
+      </ul>
+      <p>Click <strong>Create security group</strong>.</p>
+      <div class="shot"><b>Screenshot 2</b> — Web-SG showing ALB-SG as the HTTP source</div>
+    </div>
+  </div>
+
+  <div class="callout stop">
+    <span class="tag">The single most important step in this lab</span>
+    In rule 1 of <code>Web-SG</code> the source must be <strong>ALB-SG</strong>, not <code>0.0.0.0/0</code>. Start typing <code>ALB</code> in the source box and pick the group from the list.
+    <br><br>
+    This is what stops anyone from bypassing the load balancer and hitting your servers directly.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">3.</span> Part 2 — Launch Two Web Servers <span class="time">15 min</span></h2>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>Start the launch wizard</h4>
+      <p>EC2 → <strong>Instances</strong> → <strong>Launch instances</strong></p>
+      <ul>
+        <li>Name: <code>WebServer</code></li>
+        <li><strong>Number of instances: 2</strong> — this launches both in one go</li>
+        <li>Image: <strong>Amazon Linux 2023</strong></li>
+        <li>Instance type: <strong>t2.micro</strong></li>
+        <li>Key pair: select your existing key pair</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>Attach Web-SG — do not let it create a new one</h4>
+      <p>In <strong>Network settings</strong> click <strong>Edit</strong>, then choose <strong>Select existing security group</strong> and pick <code>Web-SG</code>.</p>
+      <p>By default the wizard wants to make a brand new security group. If you let it, your servers will have the wrong rules and the lab will fail later.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h4>Paste the startup script</h4>
+      <p>Scroll to <strong>Advanced details</strong> → expand it → scroll right to the bottom to the <strong>User data</strong> box. Paste the script below.</p>
+      <p>This script runs automatically the first time each server boots. It installs Apache and writes a page showing that server's own name.</p>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-label">User data — paste this exactly</div>
+    <div class="code-block"><span class="cmt">#!/bin/bash</span>
+<span class="cmd">dnf</span> install -y httpd
+<span class="cmd">systemctl</span> enable --now httpd
+<span class="cmd">echo</span> <span class="str">"&lt;html&gt;&lt;body style='font-family:Arial;text-align:center;margin-top:100px'&gt;
+&lt;h1 style='font-size:44px'&gt;Server: $(hostname -f)&lt;/h1&gt;
+&lt;p style='font-size:20px'&gt;Refresh the page to see the load balancer switch servers&lt;/p&gt;
+&lt;/body&gt;&lt;/html&gt;"</span> &gt; /var/www/html/index.html</div>
+  </div>
+
+  <div class="callout note">
+    <span class="tag">Why this script matters</span>
+    <code>$(hostname -f)</code> inserts each server's own private DNS name into the page. Both servers run the same script, but each one produces a <strong>different page</strong>. Without this you could never tell which server answered you.
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <h4>Launch and wait</h4>
+      <p>Click <strong>Launch instance</strong>. Two instances appear in the list. Wait until both show <strong>Running</strong> and <strong>2/2 checks passed</strong> — about 3 minutes.</p>
+      <div class="shot"><b>Screenshot 3</b> — two instances running with 2/2 checks passed</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <h4>Test each server on its own first</h4>
+      <p>Not through the load balancer yet — we have not built it. Copy the <strong>Public IPv4 address</strong> of instance 1 and open <code>http://&lt;that-ip&gt;</code> in your browser.</p>
+      <p><strong>It will not load, and that is correct.</strong> <code>Web-SG</code> only allows port 80 from the load balancer, so your laptop is blocked. You have just proved your security group works.</p>
+    </div>
+  </div>
+
+  <div class="callout ok">
+    <span class="tag">Checkpoint</span>
+    A failed page load here is the <strong>right</strong> answer. If the page <em>does</em> load, your Web-SG has HTTP open to <code>0.0.0.0/0</code> — go back and fix rule 1 to point at ALB-SG.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">4.</span> Part 3 — Create the Target Group <span class="time">5 min</span></h2>
+
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <h4>Create the group</h4>
+      <p>EC2 → left menu, scroll down to <strong>Load Balancing</strong> → <strong>Target Groups</strong> → <strong>Create target group</strong></p>
+      <ul>
+        <li>Target type: <strong>Instances</strong></li>
+        <li>Name: <code>web-targets</code></li>
+        <li>Protocol / Port: <strong>HTTP : 80</strong></li>
+        <li>VPC: default VPC</li>
+        <li>Health check path: leave it as <code>/</code></li>
+      </ul>
+      <p>Click <strong>Next</strong>.</p>
+      <span class="nav">EC2 → Target Groups → Create target group</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">9</div>
+    <div class="step-body">
+      <h4>Register both instances</h4>
+      <p>On the next page, tick <strong>both</strong> WebServer instances in the list, click <strong>Include as pending below</strong>, then <strong>Create target group</strong>.</p>
+      <p>Open the group and look at the <strong>Targets</strong> tab. Both will say <strong>initial</strong> at first, then turn <strong>healthy</strong> after about a minute.</p>
+      <div class="shot"><b>Screenshot 4</b> — both targets showing healthy</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="tag">If they stay unhealthy</span>
+    Wait a full two minutes first — the health check needs several passes. If they are still unhealthy after that, the cause is almost always one of two things: the user data script did not run, or <code>Web-SG</code> is not allowing port 80 from <code>ALB-SG</code>.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">5.</span> Part 4 — Create the Load Balancer <span class="time">10 min</span></h2>
+
+  <div class="step">
+    <div class="step-num">10</div>
+    <div class="step-body">
+      <h4>Pick the type</h4>
+      <p>EC2 → <strong>Load Balancers</strong> → <strong>Create load balancer</strong> → under <strong>Application Load Balancer</strong> click <strong>Create</strong>.</p>
+      <span class="nav">EC2 → Load Balancers → Create load balancer → Application Load Balancer</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">11</div>
+    <div class="step-body">
+      <h4>Basic settings</h4>
+      <ul>
+        <li>Name: <code>my-first-alb</code></li>
+        <li>Scheme: <strong>Internet-facing</strong></li>
+        <li>IP address type: <strong>IPv4</strong></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">12</div>
+    <div class="step-body">
+      <h4>Network mapping — tick two zones</h4>
+      <p>VPC: default VPC. Below it you will see a list of Availability Zones.</p>
+      <p><strong>Tick at least two</strong>, for example <code>us-east-1a</code> and <code>us-east-1b</code>. AWS will not let you continue with only one.</p>
+      <div class="shot"><b>Screenshot 5</b> — two Availability Zones selected</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">13</div>
+    <div class="step-body">
+      <h4>Security group — remove the default one</h4>
+      <p>In the <strong>Security groups</strong> section, the <code>default</code> group is pre-selected. <strong>Remove it</strong> by clicking the small × next to it, then select <code>ALB-SG</code>.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="tag">Easy to miss</span>
+    If you leave the <code>default</code> security group attached as well, the load balancer may still work — but you are no longer testing the rules you wrote. Make sure <strong>only ALB-SG</strong> is listed.
+  </div>
+
+  <div class="step">
+    <div class="step-num">14</div>
+    <div class="step-body">
+      <h4>Listener — connect it to the target group</h4>
+      <p>Under <strong>Listeners and routing</strong>:</p>
+      <ul>
+        <li>Protocol: <strong>HTTP</strong> · Port: <strong>80</strong></li>
+        <li>Default action: forward to <code>web-targets</code></li>
+      </ul>
+      <p>Click <strong>Create load balancer</strong>. It takes 2–4 minutes to become <strong>Active</strong>.</p>
+      <div class="shot"><b>Screenshot 6</b> — load balancer state showing Active</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">6.</span> Part 5 — See It Working <span class="time">15 min</span></h2>
+
+  <p>This is the part the whole lab is for. Do not rush it.</p>
+
+  <div class="step">
+    <div class="step-num">15</div>
+    <div class="step-body">
+      <h4>Copy the DNS name</h4>
+      <p>Open your load balancer and copy the <strong>DNS name</strong> from the Details section. It looks like this:</p>
+      <p><code>my-first-alb-1847263910.us-east-1.elb.amazonaws.com</code></p>
+      <p>Notice there is <strong>no IP address anywhere</strong> on this page. A load balancer only has a name.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">16</div>
+    <div class="step-body">
+      <h4>Open it in the browser</h4>
+      <p>Paste the DNS name into a new tab with <code>http://</code> in front. The page loads and shows one of your servers.</p>
+      <div class="shot"><b>Screenshot 7</b> — the page served through the load balancer</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">17</div>
+    <div class="step-body">
+      <h4>Refresh — hard refresh — and watch the name change</h4>
+      <p>Press <strong>Ctrl + Shift + R</strong> (hard refresh) several times. The server name on the page switches between your two instances.</p>
+      <p>A normal refresh often shows the cached page, so use the hard refresh.</p>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-title">What you should see, refresh after refresh</div>Server: ip-172-31-20-15.ec2.internal
+Server: ip-172-31-45-88.ec2.internal
+Server: ip-172-31-20-15.ec2.internal
+Server: ip-172-31-45-88.ec2.internal</div>
+
+  <div class="callout ok">
+    <span class="tag">This is load balancing</span>
+    One address, two servers, traffic shared between them. Your browser has no idea which machine answered — and it does not need to.
+  </div>
+
+  <h3>If the name never changes</h3>
+
+  <p>Your browser may be holding one connection open. Use this instead — connect to either instance (EC2 → Connect → EC2 Instance Connect) and run:</p>
+
+  <div class="code-wrap">
+    <div class="code-label">Run on any EC2 instance — replace with your own DNS name</div>
+    <div class="code-block"><span class="kw">for</span> i <span class="kw">in</span> {1..10}; <span class="kw">do</span> <span class="cmd">curl</span> -s http://YOUR-ALB-DNS-NAME | <span class="cmd">grep</span> Server; <span class="kw">done</span></div>
+  </div>
+
+  <p>Ten requests, one after another, with no browser caching in the way. You will see the two server names alternating clearly.</p>
+
+  <hr class="divider">
+
+  <h2><span class="n">7.</span> Part 6 — Break a Server on Purpose <span class="time">10 min</span></h2>
+
+  <p>Now prove the high-availability claim. You are going to kill one web server while the site is running.</p>
+
+  <div class="step">
+    <div class="step-num">18</div>
+    <div class="step-body">
+      <h4>Stop Apache on one instance</h4>
+      <p>EC2 → Instances → select <strong>the first</strong> WebServer → <strong>Connect</strong> → <strong>EC2 Instance Connect</strong> → <strong>Connect</strong>.</p>
+      <p>In the terminal run the command below. The web server process stops, but the EC2 instance itself keeps running.</p>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-label">Run on WebServer 1 — break it</div>
+    <div class="code-block"><span class="cmd">sudo</span> systemctl stop httpd</div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">19</div>
+    <div class="step-body">
+      <h4>Watch the target group react</h4>
+      <p>Go to <strong>Target Groups</strong> → <code>web-targets</code> → <strong>Targets</strong> tab. Keep refreshing.</p>
+      <p>Within about a minute that instance changes from <strong>healthy</strong> to <strong>unhealthy</strong>, and the reason column says the health check failed.</p>
+      <div class="shot"><b>Screenshot 8</b> — one target healthy, one unhealthy</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">20</div>
+    <div class="step-body">
+      <h4>Check the website — it still works</h4>
+      <p>Go back to your browser tab and hard refresh a few times.</p>
+      <p>The page still loads every single time. Now it always shows <strong>Server 2</strong>, because the load balancer has quietly stopped sending anyone to the broken machine.</p>
+    </div>
+  </div>
+
+  <div class="callout ok">
+    <span class="tag">This is the whole point of the module</span>
+    A server died and <strong>not one user saw an error</strong>. Nobody got a phone call at night. The site simply kept working with the capacity that was left.
+  </div>
+
+  <div class="step">
+    <div class="step-num">21</div>
+    <div class="step-body">
+      <h4>Bring it back</h4>
+      <p>In the same terminal, start Apache again. Watch the Targets tab — in about a minute it returns to <strong>healthy</strong> all by itself, and your refreshes start alternating between both servers again.</p>
+      <p>You did not have to tell the load balancer anything. The health check figured it out.</p>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-label">Run on WebServer 1 — fix it</div>
+    <div class="code-block"><span class="cmd">sudo</span> systemctl start httpd</div>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">8.</span> Record Your Observations</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:52%">Observation</th><th>Your answer</th></tr>
+    <tr><td>Load balancer DNS name</td><td class="fill">__________________________</td></tr>
+    <tr><td>Did the instance's public IP load directly? (Step 7)</td><td class="fill">Yes / No</td></tr>
+    <tr><td>Names of the two servers shown on the page</td><td class="fill">__________________________</td></tr>
+    <tr><td>Availability Zones you selected</td><td class="fill">__________________________</td></tr>
+    <tr><td>Time taken for a target to turn unhealthy</td><td class="fill">________ seconds</td></tr>
+    <tr><td>Did the website stay up with one server down?</td><td class="fill">Yes / No</td></tr>
+    <tr><td>Time taken to return to healthy after restart</td><td class="fill">________ seconds</td></tr>
+  </table>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">9.</span> If Something Does Not Work</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:30%">What you see</th><th style="width:34%">Cause</th><th>Fix</th></tr>
+    <tr>
+      <td><strong>503 Service Temporarily Unavailable</strong></td>
+      <td>Every target is unhealthy, so the ALB has nowhere to send traffic</td>
+      <td>Target Groups → Targets tab → read the health status reason. Usually Apache is not running or Web-SG is wrong.</td>
+    </tr>
+    <tr>
+      <td><strong>Page never loads, just spins</strong></td>
+      <td>ALB-SG does not allow port 80 from the internet</td>
+      <td>Check ALB-SG has an inbound HTTP rule with source <code>0.0.0.0/0</code></td>
+    </tr>
+    <tr>
+      <td><strong>Targets stuck on unhealthy</strong></td>
+      <td>Web-SG does not allow port 80 from ALB-SG</td>
+      <td>Edit Web-SG rule 1 and set the source to the <strong>ALB-SG security group</strong>, not an IP</td>
+    </tr>
+    <tr>
+      <td><strong>Targets unhealthy, Apache is running</strong></td>
+      <td>No <code>index.html</code>, so the health check on <code>/</code> gets a 403</td>
+      <td>Connect to the instance and run <code>ls /var/www/html</code>. If empty, the user data did not run — re-create the instance with the script.</td>
+    </tr>
+    <tr>
+      <td><strong>Same server name on every refresh</strong></td>
+      <td>Browser caching or a kept-alive connection</td>
+      <td>Hard refresh with <strong>Ctrl + Shift + R</strong>, try an incognito window, or use the <code>curl</code> loop from Part 5</td>
+    </tr>
+    <tr>
+      <td><strong>Cannot create the load balancer</strong></td>
+      <td>Only one Availability Zone was ticked</td>
+      <td>Select at least two zones in Network mapping</td>
+    </tr>
+    <tr>
+      <td><strong>Targets stay on "initial"</strong></td>
+      <td>Health checks have not finished their first passes</td>
+      <td>Wait a full two minutes before concluding anything is wrong</td>
+    </tr>
+    <tr>
+      <td><strong>DNS name does not resolve</strong></td>
+      <td>The load balancer is still provisioning</td>
+      <td>Wait until its state says <strong>Active</strong>, then try again</td>
+    </tr>
+  </table>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">10.</span> Clean Up — In This Order <span class="time">5 min</span></h2>
+
+  <div class="callout stop">
+    <span class="tag">Order matters</span>
+    A load balancer is <strong>not</strong> free tier. Delete it first and delete it today, or it will charge you by the hour. Security groups cannot be deleted until nothing is using them, which is why they come last.
+  </div>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:12%">Order</th><th style="width:32%">Delete</th><th>Where</th></tr>
+    <tr><td><strong>1</strong></td><td>Load balancer</td><td>EC2 → Load Balancers → select → Actions → <strong>Delete</strong></td></tr>
+    <tr><td><strong>2</strong></td><td>Target group</td><td>EC2 → Target Groups → select → Actions → <strong>Delete</strong></td></tr>
+    <tr><td><strong>3</strong></td><td>Both EC2 instances</td><td>EC2 → Instances → select both → Instance state → <strong>Terminate</strong></td></tr>
+    <tr><td><strong>4</strong></td><td>Web-SG, then ALB-SG</td><td>EC2 → Security Groups → delete Web-SG first, then ALB-SG</td></tr>
+  </table>
+  </div>
+
+  <p>Web-SG must go before ALB-SG, because Web-SG has a rule that points at ALB-SG. AWS will refuse to delete a group that another group still references.</p>
+
+  <hr class="divider">
+
+  <h2><span class="n">11.</span> What You Proved Today</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:38%">You did this</th><th>Which proves</th></tr>
+    <tr><td>Opened an instance's public IP and it failed</td><td>The servers are reachable only through the load balancer</td></tr>
+    <tr><td>Refreshed and saw the server name change</td><td>Traffic is genuinely spread across both machines</td></tr>
+    <tr><td>Used a DNS name, never an IP</td><td>A load balancer is addressed by name because its IPs change</td></tr>
+    <tr><td>Stopped Apache and the site stayed up</td><td>Health checks remove a broken server automatically</td></tr>
+    <tr><td>Started Apache and it rejoined by itself</td><td>Recovery is automatic too — no human action needed</td></tr>
+    <tr><td>Had to select two Availability Zones</td><td>AWS enforces multi-AZ so one data centre failure cannot take you offline</td></tr>
+  </table>
+  </div>
+
+  <div class="footer">
+    IIMT University, Meerut &nbsp;·&nbsp; Cloud Computing (AWS), 1st Semester &nbsp;·&nbsp; Module 09 — Load Balancer Lab
+  </div>
+
+</body>
+</html>

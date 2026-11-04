@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS CloudWatch Alarm Lab</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  :root {
+    --bg: #ffffff;
+    --fg: #16191f;
+    --muted: #5a6572;
+    --light: #f7f8fa;
+    --aws: #d96a04;
+    --aws-bg: #fdf3e7;
+    --navy: #232f3e;
+    --navy-bg: #eef1f5;
+    --green: #0f7b3f;
+    --green-bg: #e9f6ec;
+    --red: #b3261e;
+    --red-bg: #fdecea;
+    --amber: #8a5300;
+    --amber-bg: #fff6e5;
+    --border: #e2e5ea;
+    --code-bg: #1b1f26;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 40px 32px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  .header {
+    background: var(--navy);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 16px;
+  }
+  .header .eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #ff9900; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.25; }
+  .header p { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 5px; }
+
+  .meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .meta-item { background: var(--light); border: 1px solid var(--border); border-radius: 7px; padding: 9px 14px; font-size: 12.5px; flex: 1; min-width: 150px; }
+  .meta-item span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
+  .meta-item strong { font-size: 13px; }
+
+  h2 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 32px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--aws-bg);
+  }
+  h2 .n { color: var(--aws); font-family: 'Fira Code', monospace; font-size: 15px; margin-right: 7px; }
+  h3 { font-size: 14.5px; font-weight: 700; margin: 24px 0 10px; color: var(--navy); }
+
+  p { margin-bottom: 11px; font-size: 13.5px; }
+  code { font-family: 'Fira Code', monospace; font-size: 12.5px; background: var(--navy-bg); color: var(--navy); padding: 1px 6px; border-radius: 3px; }
+
+  ul, ol { margin: 0 0 12px 22px; font-size: 13.5px; }
+  li { margin-bottom: 5px; }
+
+  /* FIGURE */
+  figure { margin: 18px 0 20px; }
+  .fig-scroll { overflow-x: auto; }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 440px; }
+  figcaption { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 10px; padding: 0 12px; line-height: 1.6; }
+  figcaption strong { color: var(--fg); }
+
+  /* STEPS */
+  .step {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding: 15px 17px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--light);
+  }
+  .step-num {
+    background: var(--aws);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-body { min-width: 0; flex: 1; }
+  .step h4 { font-size: 13.5px; font-weight: 700; margin-bottom: 5px; }
+  .step p { font-size: 13px; color: var(--muted); margin: 0 0 7px; }
+  .step p:last-child { margin-bottom: 0; }
+  .step ul { margin: 5px 0 7px 18px; font-size: 13px; color: var(--muted); }
+  .step ul strong, .step p strong { color: var(--fg); }
+  .nav { font-family: 'Fira Code', monospace; font-size: 11.5px; background: #fff; border: 1px solid var(--border); color: var(--aws); padding: 3px 9px; border-radius: 4px; display: inline-block; }
+
+  /* SHOT MARKER */
+  .shot {
+    display: inline-block;
+    margin-top: 8px;
+    background: var(--navy-bg);
+    border: 1px dashed #9fb0c4;
+    border-radius: 5px;
+    padding: 5px 11px;
+    font-size: 11.5px;
+    color: var(--navy);
+    font-weight: 500;
+  }
+  .shot b { font-weight: 700; text-transform: uppercase; font-size: 10.5px; letter-spacing: .07em; }
+
+  /* CODE */
+  .code-wrap { margin: 10px 0 14px; }
+  .code-label { font-size: 10.5px; font-weight: 700; background: var(--navy); color: #fff; display: inline-block; padding: 3px 11px; border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: .5px; }
+  .code-block {
+    background: var(--code-bg);
+    color: #d4d4d4;
+    border-radius: 0 6px 6px 6px;
+    padding: 15px 18px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12.5px;
+    line-height: 1.85;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  .cmt { color: #6a9955; }
+  .cmd { color: #ce9178; }
+  .kw { color: #569cd6; }
+
+  /* CALLOUTS */
+  .callout { border-radius: 7px; padding: 13px 17px; font-size: 13px; margin: 13px 0; border: 1px solid; border-left-width: 5px; }
+  .callout .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 5px; }
+  .callout.warn { background: var(--amber-bg); border-color: #e0a106; color: #45300a; }
+  .callout.warn .tag { color: var(--amber); }
+  .callout.stop { background: var(--red-bg); border-color: #e5534b; color: #4e1410; }
+  .callout.stop .tag { color: var(--red); }
+  .callout.ok { background: var(--green-bg); border-color: #8fcfa4; color: #10401f; }
+  .callout.ok .tag { color: var(--green); }
+  .callout.note { background: var(--navy-bg); border-color: var(--navy); color: #1d2733; }
+  .callout.note .tag { color: var(--navy); }
+
+  /* TABLES */
+  .t-scroll { overflow-x: auto; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 460px; }
+  th { background: var(--navy); color: #fff; padding: 9px 13px; text-align: left; font-weight: 600; }
+  th:first-child { border-radius: 6px 0 0 0; }
+  th:last-child { border-radius: 0 6px 0 0; }
+  td { padding: 9px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--light); }
+  tr:last-child td { border-bottom: none; }
+  .fill { color: var(--muted); font-family: 'Fira Code', monospace; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  .footer { text-align: center; color: #98a1ad; font-size: 12px; margin-top: 38px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  @media print {
+    body { padding: 0; font-size: 11pt; max-width: none; }
+    .step, table, .code-wrap, .callout, .t-scroll, figure, .fig-scroll, .meta { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    .header, th, .code-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    figure svg, table { min-width: 0; }
+  }
+  @media (max-width: 560px) {
+    body { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="eyebrow">AWS · 1st Semester · Module 08 · Lab 03</div>
+    <h1>Lab — Get an Email When Your Server Gets Busy</h1>
+    <p>CloudWatch Alarm + SNS Notification + CloudTrail Audit Trail</p>
+  </div>
+
+  <div class="meta">
+    <div class="meta-item"><span>Time</span><strong>45–60 minutes</strong></div>
+    <div class="meta-item"><span>Cost</span><strong>Free tier</strong></div>
+    <div class="meta-item"><span>You need</span><strong>AWS account + a key pair</strong></div>
+  </div>
+
+  <h2><span class="n">1.</span> What You Are Building</h2>
+
+  <p>You will set up a server that <strong>emails you by itself</strong> when its CPU gets busy. Then you will make the CPU busy on purpose and watch the email arrive.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 250" role="img" aria-label="Lab architecture: an EC2 instance sends CPU utilisation to CloudWatch every one minute. A CloudWatch alarm checks whether CPU is greater than thirty percent and publishes to an SNS topic, which sends an email to the student's inbox. Separately, CloudTrail records the RunInstances API call made when the instance was launched." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="la" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <!-- EC2 -->
+      <rect x="14" y="52" width="126" height="64" rx="8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="77" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">EC2 Instance</text>
+      <text x="77" y="96" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.7">t2.micro</text>
+
+      <line x1="142" y1="84" x2="202" y2="84" stroke="currentColor" stroke-width="1.8" marker-end="url(#la)"/>
+      <text x="172" y="74" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="currentColor" opacity="0.75">CPU %</text>
+      <text x="172" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="currentColor" opacity="0.75">every 1 min</text>
+
+      <!-- ALARM -->
+      <rect x="204" y="52" width="140" height="64" rx="8" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="274" y="76" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">CloudWatch Alarm</text>
+      <text x="274" y="96" text-anchor="middle" font-family="Fira Code, monospace" font-size="11" fill="currentColor" opacity="0.8">CPU &gt; 30%</text>
+
+      <line x1="346" y1="84" x2="406" y2="84" stroke="currentColor" stroke-width="1.8" marker-end="url(#la)"/>
+      <text x="376" y="74" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="currentColor" opacity="0.75">publishes</text>
+
+      <!-- SNS -->
+      <rect x="408" y="52" width="128" height="64" rx="8" fill="#d96a04" fill-opacity="0.13" stroke="#d96a04" stroke-width="2"/>
+      <text x="472" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">SNS Topic</text>
+      <text x="472" y="96" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">MyAlertTopic</text>
+
+      <line x1="538" y1="84" x2="598" y2="84" stroke="currentColor" stroke-width="1.8" marker-end="url(#la)"/>
+      <text x="568" y="74" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="currentColor" opacity="0.75">emails</text>
+
+      <!-- INBOX -->
+      <rect x="600" y="52" width="146" height="64" rx="8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="673" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Your Inbox</text>
+      <text x="673" y="96" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">alarm email</text>
+
+      <!-- CLOUDTRAIL LANE -->
+      <line x1="77" y1="118" x2="77" y2="168" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#la)"/>
+      <text x="92" y="146" font-family="Inter, sans-serif" font-size="10" fill="currentColor" opacity="0.75">launching it was an API call</text>
+
+      <rect x="14" y="170" width="200" height="54" rx="8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="114" y="192" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">CloudTrail</text>
+      <text x="114" y="210" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">RunInstances recorded</text>
+
+      <text x="232" y="197" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.6">you will look this up in Part 5 — no setup needed</text>
+    </svg>
+    </div>
+    <figcaption><strong>The full lab in one picture.</strong> Solid path: the alarm chain you will build. Dashed: CloudTrail is already recording in the background, so you only have to go and read it.</figcaption>
+  </figure>
+
+  <hr class="divider">
+
+  <h2><span class="n">2.</span> Part 1 — Create the SNS Topic</h2>
+
+  <p>Build the notification channel first. An alarm needs somewhere to send its message.</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>Create a topic</h4>
+      <p>In the AWS Console, search for <strong>SNS</strong> → open it → click <strong>Topics</strong> → <strong>Create topic</strong>.</p>
+      <ul>
+        <li>Type: <strong>Standard</strong></li>
+        <li>Name: <code>MyAlertTopic</code></li>
+        <li>Leave everything else as it is → <strong>Create topic</strong></li>
+      </ul>
+      <span class="nav">SNS → Topics → Create topic</span>
+      <div class="shot"><b>Screenshot 1</b> — the topic page after it is created</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>Subscribe your email address</h4>
+      <p>On the topic page click <strong>Create subscription</strong>.</p>
+      <ul>
+        <li>Protocol: <strong>Email</strong></li>
+        <li>Endpoint: <strong>your own email address</strong></li>
+        <li>Click <strong>Create subscription</strong></li>
+      </ul>
+      <p>The status will show <strong>Pending confirmation</strong>. That is expected — move to the next step.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>Confirm the subscription — do not skip this</h4>
+      <p>Open your email inbox. You will have a mail from <strong>AWS Notifications</strong>. Click the <strong>Confirm subscription</strong> link inside it.</p>
+      <p>Go back to the AWS console, refresh the subscriptions list, and check the status now reads <strong>Confirmed</strong>.</p>
+      <div class="shot"><b>Screenshot 2</b> — the subscription showing status Confirmed</div>
+    </div>
+  </div>
+
+  <div class="callout stop">
+    <span class="tag">If you skip step 3, the whole lab will fail</span>
+    An unconfirmed subscription receives <strong>nothing</strong>. The alarm will turn red correctly but no email will ever arrive, and you will think the alarm is broken. <strong>Check your spam folder</strong> if the confirmation mail is not in the inbox.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">3.</span> Part 2 — Launch the EC2 Instance</h2>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>Launch a server</h4>
+      <p>Go to <strong>EC2</strong> → <strong>Instances</strong> → <strong>Launch instances</strong>.</p>
+      <ul>
+        <li>Name: <code>MonitorDemo</code></li>
+        <li>Image (AMI): <strong>Amazon Linux 2023</strong></li>
+        <li>Instance type: <strong>t2.micro</strong> (free tier eligible)</li>
+        <li>Key pair: select the one you created earlier</li>
+        <li>Network settings: <strong>Allow SSH traffic</strong> → tick it</li>
+      </ul>
+      <span class="nav">EC2 → Instances → Launch instances</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h4>Turn on Detailed monitoring — important</h4>
+      <p>Before you click Launch, scroll down and expand <strong>Advanced details</strong>. Find <strong>Detailed CloudWatch monitoring</strong> and set it to <strong>Enable</strong>.</p>
+      <p><strong>Why:</strong> normally CloudWatch takes a reading every 5 minutes. With detailed monitoring it reads every <strong>1 minute</strong>, so your alarm reacts in 2–3 minutes instead of 10–15. Now click <strong>Launch instance</strong>.</p>
+      <div class="shot"><b>Screenshot 3</b> — Detailed CloudWatch monitoring set to Enable</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <h4>Wait for the instance to be ready</h4>
+      <p>Open <strong>Instances</strong> and wait until <strong>Instance state = Running</strong> and <strong>Status check = 2/2 checks passed</strong>. This takes 2–3 minutes.</p>
+      <p>Note down the <strong>Instance ID</strong> — you need it in the next part. It looks like <code>i-0a1b2c3d4e5f</code>.</p>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">4.</span> Part 3 — Create the CloudWatch Alarm</h2>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <h4>Start a new alarm</h4>
+      <p>Search for <strong>CloudWatch</strong> → in the left menu click <strong>Alarms</strong> → <strong>All alarms</strong> → <strong>Create alarm</strong>.</p>
+      <p>Click <strong>Select metric</strong>.</p>
+      <span class="nav">CloudWatch → Alarms → Create alarm</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <h4>Pick the CPU metric of your instance</h4>
+      <p>In the metric browser: click <strong>EC2</strong> → <strong>Per-Instance Metrics</strong>. A long list appears.</p>
+      <p>Use the search box and paste your <strong>Instance ID</strong>. Then tick the row where the metric name is <code>CPUUtilization</code> → click <strong>Select metric</strong>.</p>
+      <div class="shot"><b>Screenshot 4</b> — the CPUUtilization row selected for your instance</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">9</div>
+    <div class="step-body">
+      <h4>Set the condition</h4>
+      <p>On the <strong>Specify metric and conditions</strong> page:</p>
+      <ul>
+        <li>Statistic: <strong>Average</strong></li>
+        <li>Period: <strong>1 minute</strong></li>
+        <li>Threshold type: <strong>Static</strong></li>
+        <li>Whenever CPUUtilization is… <strong>Greater</strong> than <strong>30</strong></li>
+      </ul>
+      <p>Expand <strong>Additional configuration</strong> and set <strong>Datapoints to alarm</strong> to <strong>1 out of 1</strong>. Click <strong>Next</strong>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">10</div>
+    <div class="step-body">
+      <h4>Connect it to your SNS topic</h4>
+      <p>On the <strong>Configure actions</strong> page:</p>
+      <ul>
+        <li>Alarm state trigger: <strong>In alarm</strong></li>
+        <li>Send notification to: <strong>Select an existing SNS topic</strong></li>
+        <li>Choose <code>MyAlertTopic</code></li>
+      </ul>
+      <p>Click <strong>Next</strong>.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">11</div>
+    <div class="step-body">
+      <h4>Name it and create</h4>
+      <p>Alarm name: <code>HighCPUAlarm</code> → <strong>Next</strong> → review → <strong>Create alarm</strong>.</p>
+      <p>Open the alarm. Within a minute or two its state should settle on <strong>OK</strong>, because an idle server uses almost no CPU.</p>
+      <div class="shot"><b>Screenshot 5</b> — the alarm showing state OK</div>
+    </div>
+  </div>
+
+  <div class="callout note">
+    <span class="tag">If the state says INSUFFICIENT_DATA</span>
+    This is normal for the first few minutes — CloudWatch has not collected enough readings yet. Wait 2–3 minutes and refresh. It will move to OK on its own.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">5.</span> Part 4 — Make the CPU Busy and Watch It Fire</h2>
+
+  <div class="step">
+    <div class="step-num">12</div>
+    <div class="step-body">
+      <h4>Connect to the instance</h4>
+      <p>EC2 → Instances → select <code>MonitorDemo</code> → click <strong>Connect</strong> → choose <strong>EC2 Instance Connect</strong> → <strong>Connect</strong>. A terminal opens in your browser.</p>
+      <p>(If you prefer, SSH in from your own terminal using your key pair — either way works.)</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">13</div>
+    <div class="step-body">
+      <h4>Start the CPU load</h4>
+      <p>Type the command below and press Enter. It starts one busy loop for every CPU core, which pushes CPU usage to 100%. Nothing needs to be installed.</p>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-label">Run on the EC2 instance — start the load</div>
+    <div class="code-block"><span class="cmt"># one busy loop per CPU core</span>
+<span class="kw">for</span> i <span class="kw">in</span> $(seq 1 $(nproc)); <span class="kw">do</span> <span class="cmd">yes</span> &gt; /dev/null &amp; <span class="kw">done</span></div>
+  </div>
+
+  <p>Nothing will be printed. That is correct — the loops are running silently in the background.</p>
+
+  <div class="step">
+    <div class="step-num">14</div>
+    <div class="step-body">
+      <h4>Watch the alarm turn red</h4>
+      <p>Go back to <strong>CloudWatch → Alarms</strong>. Keep refreshing. Within <strong>2–3 minutes</strong> the state changes from <strong>OK</strong> to <strong>In alarm</strong> and the row turns red.</p>
+      <p>Click the alarm and look at the graph — you can see the exact point where the line crossed the dashed threshold.</p>
+      <div class="shot"><b>Screenshot 6</b> — the alarm In alarm, with the graph above the threshold</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">15</div>
+    <div class="step-body">
+      <h4>Check your email</h4>
+      <p>Open your inbox. There is a mail from AWS Notifications with the subject starting <strong>“ALARM: HighCPUAlarm…”</strong></p>
+      <p>Read it — it tells you which metric fired, what the threshold was, and the value that breached it.</p>
+      <div class="shot"><b>Screenshot 7</b> — the alarm email in your inbox</div>
+    </div>
+  </div>
+
+  <div class="callout ok">
+    <span class="tag">Checkpoint</span>
+    Your server just told you it was in trouble, by itself, without you watching it. That is the whole point of monitoring.
+  </div>
+
+  <div class="step">
+    <div class="step-num">16</div>
+    <div class="step-body">
+      <h4>Stop the load and watch it recover</h4>
+      <p>Back in the EC2 terminal, run the command below. A few minutes later the alarm returns to <strong>OK</strong> on its own — nobody has to reset it.</p>
+    </div>
+  </div>
+
+  <div class="code-wrap">
+    <div class="code-label">Run on the EC2 instance — stop the load</div>
+    <div class="code-block"><span class="cmt"># kill all the busy loops</span>
+<span class="cmd">pkill</span> yes</div>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">6.</span> Part 5 — Find Yourself in CloudTrail</h2>
+
+  <p>You did not set up CloudTrail. It has been recording all along. Now go and read what it saw.</p>
+
+  <div class="step">
+    <div class="step-num">17</div>
+    <div class="step-body">
+      <h4>Open Event history</h4>
+      <p>Search for <strong>CloudTrail</strong> → in the left menu click <strong>Event history</strong>.</p>
+      <p>You will see a list of every action you have taken in this account recently.</p>
+      <span class="nav">CloudTrail → Event history</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">18</div>
+    <div class="step-body">
+      <h4>Find the moment you launched the instance</h4>
+      <p>In the filter box choose <strong>Event name</strong> and type <code>RunInstances</code>. Press Enter, then click the event in the results to expand it.</p>
+      <p>Read these fields and write them in the table below:</p>
+      <ul>
+        <li><strong>User name</strong> — who did it</li>
+        <li><strong>Event time</strong> — when</li>
+        <li><strong>Source IP address</strong> — the internet address you were sitting at</li>
+        <li><strong>Resource type / name</strong> — what was affected</li>
+      </ul>
+      <div class="shot"><b>Screenshot 8</b> — the expanded RunInstances event</div>
+    </div>
+  </div>
+
+  <div class="callout note">
+    <span class="tag">Think about this</span>
+    CloudTrail recorded your IP address and your username the moment you clicked Launch — without anyone configuring it. This is why CloudTrail is the answer whenever a question asks <strong>“who did this?”</strong>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">7.</span> Record Your Observations</h2>
+
+  <p>Fill this in from your own lab run. You will need it for your lab record.</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:48%">Observation</th><th>Your answer</th></tr>
+    <tr><td>SNS topic name</td><td class="fill">________________________</td></tr>
+    <tr><td>Subscription status after confirming</td><td class="fill">________________________</td></tr>
+    <tr><td>EC2 Instance ID</td><td class="fill">________________________</td></tr>
+    <tr><td>Alarm state before running the command</td><td class="fill">________________________</td></tr>
+    <tr><td>Time taken for the alarm to turn red</td><td class="fill">_______ minutes</td></tr>
+    <tr><td>Highest CPU % shown on the graph</td><td class="fill">_______ %</td></tr>
+    <tr><td>Subject line of the email you received</td><td class="fill">________________________</td></tr>
+    <tr><td>Alarm state after running <code>pkill yes</code></td><td class="fill">________________________</td></tr>
+    <tr><td>CloudTrail — your user name</td><td class="fill">________________________</td></tr>
+    <tr><td>CloudTrail — your source IP address</td><td class="fill">________________________</td></tr>
+  </table>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">8.</span> If Something Does Not Work</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr>
+      <th style="width:33%">Problem</th>
+      <th style="width:33%">Reason</th>
+      <th>Fix</th>
+    </tr>
+    <tr>
+      <td>Alarm turned red but no email arrived</td>
+      <td>The email subscription was never confirmed</td>
+      <td>SNS → Topics → your topic → check status is <strong>Confirmed</strong>. Check spam folder for the confirmation mail.</td>
+    </tr>
+    <tr>
+      <td>No confirmation email at all</td>
+      <td>Wrong address typed, or it went to spam</td>
+      <td>Delete the subscription and create it again, carefully. Check spam and promotions folders.</td>
+    </tr>
+    <tr>
+      <td>Alarm stuck on INSUFFICIENT_DATA</td>
+      <td>Not enough readings collected yet</td>
+      <td>Wait 3–5 minutes. If it stays there, confirm the instance is <strong>Running</strong> and that you picked the right Instance ID.</td>
+    </tr>
+    <tr>
+      <td>Alarm never turns red even though CPU is loaded</td>
+      <td>The metric belongs to a different instance</td>
+      <td>Delete the alarm, create it again, and search by your exact Instance ID when selecting the metric.</td>
+    </tr>
+    <tr>
+      <td>Alarm takes more than 10 minutes</td>
+      <td>Detailed monitoring was not enabled, so readings come every 5 minutes</td>
+      <td>EC2 → select instance → Monitoring tab → <strong>Manage detailed monitoring</strong> → Enable</td>
+    </tr>
+    <tr>
+      <td><code>nproc</code> or <code>yes</code> command not found</td>
+      <td>You are on a Windows instance, not Linux</td>
+      <td>This lab needs <strong>Amazon Linux 2023</strong>. Launch a Linux instance.</td>
+    </tr>
+    <tr>
+      <td>Cannot connect with EC2 Instance Connect</td>
+      <td>SSH (port 22) is not allowed in the security group</td>
+      <td>EC2 → Security tab → security group → Edit inbound rules → allow <strong>SSH / port 22</strong></td>
+    </tr>
+    <tr>
+      <td>CPU goes back down on its own</td>
+      <td>Your terminal session closed, which killed the loops</td>
+      <td>Reconnect and run the load command again</td>
+    </tr>
+  </table>
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">9.</span> Clean Up — Do Not Skip This</h2>
+
+  <p>Leaving resources running will use up your free tier. Delete them in this order:</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:12%">Order</th><th style="width:30%">What</th><th>Where</th></tr>
+    <tr><td><strong>1</strong></td><td>Terminate the EC2 instance</td><td>EC2 → Instances → select → Instance state → <strong>Terminate instance</strong></td></tr>
+    <tr><td><strong>2</strong></td><td>Delete the alarm</td><td>CloudWatch → Alarms → select <code>HighCPUAlarm</code> → Actions → Delete</td></tr>
+    <tr><td><strong>3</strong></td><td>Delete the SNS topic</td><td>SNS → Topics → select <code>MyAlertTopic</code> → Delete</td></tr>
+  </table>
+  </div>
+
+  <div class="callout warn">
+    <span class="tag">Leave CloudTrail alone</span>
+    There is nothing to delete for CloudTrail — Event history is a built-in feature, not something you created. It costs nothing.
+  </div>
+
+  <hr class="divider">
+
+  <h2><span class="n">10.</span> What You Learned</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:34%">You did this</th><th>Which proves</th></tr>
+    <tr><td>Created an SNS topic and confirmed an email subscription</td><td>Notifications only reach a subscriber who has joined the topic</td></tr>
+    <tr><td>Built an alarm on CPUUtilization</td><td>An alarm watches one metric against one threshold</td></tr>
+    <tr><td>Saw the state change OK → In alarm → OK</td><td>Alarms fire on the crossing and recover on their own</td></tr>
+    <tr><td>Received an automatic email</td><td>CloudWatch detects, SNS delivers — two services, one chain</td></tr>
+    <tr><td>Found your own <code>RunInstances</code> event</td><td>CloudTrail records who did what, with no setup required</td></tr>
+  </table>
+  </div>
+
+  <div class="footer">
+    IIMT University, Meerut &nbsp;·&nbsp; Cloud Computing (AWS), 1st Semester &nbsp;·&nbsp; Module 08 Lab
+  </div>
+
+</body>
+</html>

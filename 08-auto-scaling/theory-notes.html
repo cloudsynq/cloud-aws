@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Scaling – Theory Notes</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+  :root {
+    --bg: #ffffff; --fg: #16191f; --muted: #5a6572; --light: #f7f8fa;
+    --aws: #d96a04; --aws-bg: #fdf3e7;
+    --navy: #232f3e; --navy-bg: #eef1f5;
+    --green: #0f7b3f; --green-bg: #e9f6ec;
+    --red: #b3261e; --red-bg: #fdecea;
+    --amber: #8a5300; --amber-bg: #fff6e5;
+    --border: #e2e5ea; --code-bg: #1b1f26;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif; background: var(--bg); color: var(--fg);
+    font-size: 14px; line-height: 1.7; padding: 40px 32px;
+    max-width: 880px; margin: 0 auto;
+  }
+
+  .header { background: var(--navy); border-radius: 10px; padding: 22px 26px; margin-bottom: 18px; }
+  .header .eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #ff9900; margin-bottom: 6px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.25; }
+  .header p { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 5px; }
+
+  h2 { font-size: 17px; font-weight: 700; color: var(--navy); margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--aws-bg); }
+  h2 .n { color: var(--aws); font-family: 'Fira Code', monospace; font-size: 15px; margin-right: 7px; }
+  h3 { font-size: 14.5px; font-weight: 700; margin: 24px 0 10px; color: var(--navy); }
+
+  p { margin-bottom: 11px; font-size: 13.5px; }
+  code { font-family: 'Fira Code', monospace; font-size: 12.5px; background: var(--navy-bg); color: var(--navy); padding: 1px 6px; border-radius: 3px; }
+
+  ul, ol { margin: 0 0 12px 22px; font-size: 13.5px; }
+  li { margin-bottom: 5px; }
+
+  .analogy { background: var(--amber-bg); border: 1px solid #f0cf8a; border-left: 5px solid #e0a106; border-radius: 7px; padding: 14px 18px; margin: 15px 0 17px; }
+  .analogy .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--amber); margin-bottom: 6px; }
+  .analogy p { font-size: 13.5px; margin-bottom: 8px; color: #45300a; }
+  .analogy p:last-child { margin-bottom: 0; }
+  .analogy strong { color: #6b4000; }
+
+  .scenario { background: var(--green-bg); border: 1px solid #a8d8ba; border-left: 5px solid var(--green); border-radius: 7px; padding: 14px 18px; margin: 15px 0 17px; }
+  .scenario .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--green); margin-bottom: 6px; }
+  .scenario p { font-size: 13.5px; margin-bottom: 8px; color: #10401f; }
+  .scenario p:last-child { margin-bottom: 0; }
+  .scenario strong { color: #0a3318; }
+
+  .key { background: var(--navy-bg); border: 1px solid #cdd6e0; border-left: 5px solid var(--navy); border-radius: 7px; padding: 13px 18px; margin: 14px 0; font-size: 13.5px; }
+  .key .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--navy); margin-bottom: 5px; }
+
+  .warn { background: var(--red-bg); border: 1px solid #f0b4af; border-left: 5px solid #e5534b; border-radius: 7px; padding: 13px 18px; margin: 14px 0; font-size: 13.5px; color: #4e1410; }
+  .warn .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--red); margin-bottom: 5px; }
+
+  .extra { background: var(--light); border: 1px solid var(--border); border-radius: 7px; padding: 13px 18px; margin: 14px 0; font-size: 13.5px; }
+  .extra .tag { display: block; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 5px; }
+
+  .t-scroll { overflow-x: auto; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
+  th { background: var(--navy); color: #fff; padding: 9px 13px; text-align: left; font-weight: 600; }
+  th:first-child { border-radius: 6px 0 0 0; }
+  th:last-child { border-radius: 0 6px 0 0; }
+  td { padding: 9px 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--light); }
+  tr:last-child td { border-bottom: none; }
+  .ok { color: var(--green); font-weight: 700; }
+  .no { color: var(--red); font-weight: 700; }
+
+  figure { margin: 20px 0 22px; }
+  .fig-scroll { overflow-x: auto; }
+  figure svg { display: block; max-width: 100%; height: auto; margin: 0 auto; min-width: 440px; }
+  figcaption { font-size: 12.5px; color: var(--muted); text-align: center; margin-top: 10px; padding: 0 12px; line-height: 1.6; }
+  figcaption strong { color: var(--fg); }
+
+  .code-wrap { margin: 12px 0 15px; }
+  .code-label { font-size: 10.5px; font-weight: 700; background: var(--navy); color: #fff; display: inline-block; padding: 3px 11px; border-radius: 4px 4px 0 0; text-transform: uppercase; letter-spacing: .5px; }
+  .code-block { background: var(--code-bg); color: #d4d4d4; border-radius: 0 6px 6px 6px; padding: 15px 18px; font-family: 'Fira Code', monospace; font-size: 12.5px; line-height: 1.85; white-space: pre; overflow-x: auto; }
+  .cmt { color: #6a9955; }
+  .str { color: #ce9178; }
+  .kw { color: #569cd6; }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; }
+  .footer { text-align: center; color: #98a1ad; font-size: 12px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  @media print {
+    body { padding: 0; font-size: 11pt; max-width: none; }
+    figure, table, .analogy, .scenario, .key, .warn, .extra, .t-scroll, .fig-scroll, .code-wrap { page-break-inside: avoid; }
+    h2, h3 { page-break-after: avoid; }
+    .header, th, .code-block { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    figure svg, table { min-width: 0; }
+  }
+  @media (max-width: 560px) { body { padding: 24px 16px; } }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="eyebrow">AWS · 1st Semester · Module 09</div>
+    <h1>Auto Scaling Groups</h1>
+    <p>Theory Notes — Launch Templates, Scaling Policies and Self-Healing</p>
+  </div>
+
+  <!-- ===== 1. PROBLEM ===== -->
+  <h2><span class="n">1.</span> What the Load Balancer Did Not Solve</h2>
+
+  <p>In the last topic you built a load balancer with two servers behind it. Traffic gets shared, and if one server dies the other carries on. That is a real improvement.</p>
+
+  <p>But notice what is still fixed: <strong>the number two</strong>. You chose it, and it never changes. Nobody is adding a third server when things get busy, and nobody is shutting one down at 2 a.m.</p>
+
+  <div class="scenario">
+    <span class="tag">Real situation — a food delivery app</span>
+    <p>Traffic is almost nothing from 2 a.m. to 7 a.m. It climbs through the day and <strong>explodes between 7 p.m. and 10 p.m.</strong> — dinner time.</p>
+    <p>You have to pick a fixed number of servers. So which number?</p>
+    <p>Pick enough for dinner time and you are paying for those servers all night while nobody uses them. Pick enough for the night and the app crawls to a stop exactly when every customer is ordering.</p>
+    <p><strong>There is no right number.</strong> That is the problem.</p>
+  </div>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 720 324" role="img" aria-label="A graph of website traffic over twenty four hours. Traffic is very low overnight and peaks in the evening. A flat dashed line shows fixed server capacity. Overnight the capacity line is far above the traffic, which is wasted money. In the evening the traffic rises above the capacity line, which means the site slows down." xmlns="http://www.w3.org/2000/svg">
+      <!-- AXES -->
+      <line x1="66" y1="42" x2="66" y2="242" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="66" y1="242" x2="668" y2="242" stroke="currentColor" stroke-width="1.5"/>
+
+      <text x="30" y="142" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor" transform="rotate(-90 30 142)" text-anchor="middle">traffic</text>
+
+      <!-- X LABELS -->
+      <text x="70" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">12 am</text>
+      <text x="218" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">6 am</text>
+      <text x="366" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">12 pm</text>
+      <text x="514" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">6 pm</text>
+      <text x="662" y="262" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.7">12 am</text>
+
+      <!-- FIXED CAPACITY -->
+      <line x1="66" y1="128" x2="668" y2="128" stroke="#e5534b" stroke-width="2" stroke-dasharray="7 4"/>
+      <text x="664" y="120" text-anchor="end" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b3261e">fixed capacity — 3 servers, always</text>
+
+      <!-- TRAFFIC CURVE -->
+      <polyline points="70,221 144,231 218,221 292,174 366,136 440,146 514,79 588,60 662,184"
+                fill="none" stroke="currentColor" stroke-width="2.8"/>
+
+      <!-- ANNOTATIONS -->
+      <text x="176" y="176" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b3261e">paying for servers</text>
+      <text x="176" y="192" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b3261e">nobody is using</text>
+
+      <text x="566" y="103" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#b3261e">not enough — site slows</text>
+
+      <text x="366" y="302" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">Demand changes all day. A fixed number of servers cannot be right at both ends.</text>
+    </svg>
+    </div>
+    <figcaption><strong>Both failures cost you.</strong> Over-provisioning wastes money every single night; under-provisioning loses customers at the busiest hour of the day. What you actually want is capacity that follows the curve.</figcaption>
+  </figure>
+
+  <hr class="divider">
+
+  <!-- ===== 2. WHAT IS ASG ===== -->
+  <h2><span class="n">2.</span> What an Auto Scaling Group Is</h2>
+
+  <div class="key">
+    <span class="tag">Definition</span>
+    An <strong>Auto Scaling Group (ASG)</strong> is a service that automatically <strong>adds EC2 instances when demand rises and removes them when demand falls</strong>, keeping the number of servers matched to the actual load — without anyone watching.
+  </div>
+
+  <div class="analogy">
+    <span class="tag">Analogy — a restaurant calling in waiters</span>
+    <p>A restaurant manager does not keep twenty waiters standing around at 11 a.m. when the place is empty. Two is plenty.</p>
+    <p>At 8 p.m. the restaurant fills up. The manager phones the extra staff: <em>“come in now.”</em> By 11 p.m. the crowd thins out and she sends most of them home.</p>
+    <p>She never goes below two — somebody has to be there. And she never calls in more than twenty, because she cannot afford it.</p>
+    <p>That manager is the Auto Scaling Group. <strong>Two is the minimum, twenty is the maximum</strong>, and the number working right now is whatever the crowd needs.</p>
+  </div>
+
+  <p>Notice something important: Auto Scaling does <strong>not</strong> make any server bigger or faster. It changes <em>how many</em> servers there are.</p>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:26%">Approach</th><th style="width:30%">What you do</th><th>Analogy</th></tr>
+    <tr>
+      <td><strong>Scaling UP</strong><br><span style="color:var(--muted);font-weight:400">vertical scaling</span></td>
+      <td>Replace the server with a bigger one — t2.micro becomes t2.large</td>
+      <td>Hire one faster clerk. There is a limit to how fast one person can be.</td>
+    </tr>
+    <tr>
+      <td><strong>Scaling OUT</strong><br><span style="color:var(--muted);font-weight:400">horizontal scaling</span></td>
+      <td>Add more servers of the same size</td>
+      <td>Open more billing counters. You can keep opening more.</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="key">
+    <span class="tag">Remember the words</span>
+    <strong>Auto Scaling Groups do horizontal scaling — scaling OUT and IN.</strong> Adding servers is called <strong>scale out</strong>; removing them is <strong>scale in</strong>. The exam uses these exact words.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 3. THREE NUMBERS ===== -->
+  <h2><span class="n">3.</span> The Three Numbers That Define an ASG</h2>
+
+  <p>When you create an Auto Scaling Group, you set exactly three numbers. Everything else is detail. Get these three right and you understand ASGs.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 700 346" role="img" aria-label="A vertical stack of six server slots. The bottom three are filled and running, which is the desired capacity of three. A line marks the minimum of two at the second slot, meaning the group never goes below two servers. A line marks the maximum of six at the top slot, meaning the group never launches more than six." xmlns="http://www.w3.org/2000/svg">
+      <!-- RUNNING SLOTS -->
+      <rect x="60" y="270" width="150" height="38" rx="6" fill="#1f9d55" fill-opacity="0.14" stroke="#1f9d55" stroke-width="1.8"/>
+      <text x="135" y="294" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">Server 1</text>
+
+      <rect x="60" y="226" width="150" height="38" rx="6" fill="#1f9d55" fill-opacity="0.14" stroke="#1f9d55" stroke-width="1.8"/>
+      <text x="135" y="250" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">Server 2</text>
+
+      <rect x="60" y="182" width="150" height="38" rx="6" fill="#1f9d55" fill-opacity="0.14" stroke="#1f9d55" stroke-width="1.8"/>
+      <text x="135" y="206" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="currentColor">Server 3</text>
+
+      <!-- EMPTY SLOTS -->
+      <rect x="60" y="138" width="150" height="38" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.5"/>
+      <text x="135" y="162" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.5">room to grow</text>
+
+      <rect x="60" y="94" width="150" height="38" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.5"/>
+      <text x="135" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.5">room to grow</text>
+
+      <rect x="60" y="50" width="150" height="38" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.5"/>
+      <text x="135" y="74" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.5">room to grow</text>
+
+      <!-- MARKER LINES -->
+      <line x1="46" y1="46" x2="330" y2="46" stroke="#d96a04" stroke-width="2"/>
+      <line x1="46" y1="178" x2="330" y2="178" stroke="#d96a04" stroke-width="2"/>
+      <line x1="46" y1="222" x2="330" y2="222" stroke="#d96a04" stroke-width="2"/>
+
+      <!-- LABELS -->
+      <text x="344" y="42" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">MAXIMUM = 6</text>
+      <text x="344" y="60" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">Never launch more than this. Your cost ceiling.</text>
+
+      <text x="344" y="174" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">DESIRED = 3</text>
+      <text x="344" y="192" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">Running right now. This is the number ASG changes.</text>
+
+      <text x="344" y="218" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="currentColor">MINIMUM = 2</text>
+      <text x="344" y="236" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">Never go below this. Your safety floor.</text>
+
+      <text x="135" y="332" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="currentColor" opacity="0.65">running now</text>
+    </svg>
+    </div>
+    <figcaption><strong>Only one of the three moves.</strong> Minimum and maximum are boundaries you set once. Desired capacity is what Auto Scaling raises and lowers, always staying between the two.</figcaption>
+  </figure>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:22%">Setting</th><th style="width:34%">What it means</th><th>What goes wrong if you set it badly</th></tr>
+    <tr>
+      <td><strong>Minimum</strong></td>
+      <td>The fewest instances allowed. ASG will never go below this, even at 3 a.m.</td>
+      <td>Set it to 0 and your site can go completely offline during a quiet period.</td>
+    </tr>
+    <tr>
+      <td><strong>Desired</strong></td>
+      <td>How many are running at this moment. ASG raises and lowers this number.</td>
+      <td>Nothing — this is the one that is supposed to change.</td>
+    </tr>
+    <tr>
+      <td><strong>Maximum</strong></td>
+      <td>The most instances allowed. ASG will never launch past this.</td>
+      <td>Set it too high and a traffic spike — or an attack — can run up a huge bill.</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="key">
+    <span class="tag">Why maximum matters more than students expect</span>
+    Maximum is not a performance setting, it is a <strong>budget setting</strong>. Without it, a bot attack sending millions of fake requests would make Auto Scaling cheerfully launch hundreds of instances — and you would get the bill. Maximum is the line that says “beyond this point, slow down rather than spend more.”
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 4. LAUNCH TEMPLATE ===== -->
+  <h2><span class="n">4.</span> The Launch Template — the Blueprint</h2>
+
+  <p>Here is a question worth pausing on. When Auto Scaling decides to add a server at 3 a.m., <strong>what server does it create?</strong> Which AMI, which size, which security group, which key pair?</p>
+
+  <p>Nobody is awake to tell it. So you have to write it all down in advance. That written-down specification is the <strong>Launch Template</strong>.</p>
+
+  <div class="analogy">
+    <span class="tag">Analogy — the recipe</span>
+    <p>A restaurant's head chef writes down the recipe for their signature dish: exact ingredients, exact quantities, exact steps.</p>
+    <p>Now any cook on any shift can produce the identical dish without asking anybody. The chef does not need to be in the kitchen.</p>
+    <p>A Launch Template is that recipe. Auto Scaling follows it to produce identical servers, at any hour, with nobody supervising.</p>
+  </div>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:30%">The Launch Template specifies</th><th>Example</th></tr>
+    <tr><td>AMI — the operating system image</td><td>Amazon Linux 2023</td></tr>
+    <tr><td>Instance type</td><td><code>t2.micro</code></td></tr>
+    <tr><td>Key pair</td><td>Your SSH key</td></tr>
+    <tr><td>Security group</td><td><code>Web-SG</code></td></tr>
+    <tr><td>User data script</td><td>Install Apache and write the home page</td></tr>
+    <tr><td>Storage</td><td>8 GB gp3 volume</td></tr>
+  </table>
+  </div>
+
+  <div class="key">
+    <span class="tag">Why the user data script suddenly matters so much</span>
+    A brand-new instance launched by Auto Scaling is <strong>completely blank</strong>. No Apache, no website, nothing. If the user data script does not install and configure everything, the new server comes up useless and fails its health check.
+    <br><br>
+    This is why you learned user data back in the EC2 module. With Auto Scaling it stops being a convenience and becomes essential.
+  </div>
+
+  <div class="extra">
+    <span class="tag">You may see an older name</span>
+    Older documentation mentions <strong>Launch Configurations</strong>. That is the previous generation — it cannot be edited after creation and AWS no longer recommends it. Always use <strong>Launch Templates</strong>, which support versions so you can update them.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 5. HOW IT DECIDES ===== -->
+  <h2><span class="n">5.</span> How Auto Scaling Knows When to Act</h2>
+
+  <p>Auto Scaling has no opinion of its own about whether your servers are busy. It has to be told — and it is told by something you already know.</p>
+
+  <div class="key">
+    <span class="tag">The connection back to Module 08</span>
+    <strong>CloudWatch alarms trigger Auto Scaling.</strong> The same alarm you built to send yourself an email can instead tell an Auto Scaling Group to launch another server. Same alarm, different action.
+  </div>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 258" role="img" aria-label="A loop. A CloudWatch alarm fires when average CPU goes above seventy percent. It tells the Auto Scaling Group to raise desired capacity from three to four. A new EC2 instance is launched from the launch template. The instance is registered into the target group and the load balancer starts sending it traffic. The load is now shared across four servers so average CPU falls and the alarm returns to OK." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="asA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="14" y="46" width="160" height="64" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="94" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">CloudWatch Alarm</text>
+      <text x="94" y="92" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">avg CPU &gt; 70%</text>
+
+      <line x1="176" y1="78" x2="204" y2="78" stroke="currentColor" stroke-width="1.6" marker-end="url(#asA)"/>
+
+      <rect x="206" y="46" width="170" height="64" rx="8" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="291" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Auto Scaling Group</text>
+      <text x="291" y="92" text-anchor="middle" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.75">desired 3 → 4</text>
+
+      <line x1="378" y1="78" x2="406" y2="78" stroke="currentColor" stroke-width="1.6" marker-end="url(#asA)"/>
+
+      <rect x="408" y="46" width="150" height="64" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="483" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">New EC2 launched</text>
+      <text x="483" y="92" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">from Launch Template</text>
+
+      <line x1="560" y1="78" x2="588" y2="78" stroke="currentColor" stroke-width="1.6" marker-end="url(#asA)"/>
+
+      <rect x="590" y="46" width="156" height="64" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="668" y="72" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Joins Target Group</text>
+      <text x="668" y="92" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">ALB starts using it</text>
+
+      <!-- FEEDBACK LOOP -->
+      <path d="M 668 114 L 668 172 L 94 172 L 94 114" fill="none" stroke="#1f9d55" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#asA)" color="#1f9d55"/>
+      <text x="380" y="164" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="#0f7b3f">load is now shared across 4 servers — average CPU falls — alarm returns to OK</text>
+
+      <text x="380" y="226" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">The same loop runs in reverse: CPU stays low → alarm fires → desired drops → an instance is terminated.</text>
+    </svg>
+    </div>
+    <figcaption><strong>It is a feedback loop, not a one-way instruction.</strong> Adding a server is what makes the metric fall, which is what stops more servers being added. The system settles itself.</figcaption>
+  </figure>
+
+  <h3>The four kinds of scaling policy</h3>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:24%">Policy</th><th style="width:38%">How you describe what you want</th><th>Use it when</th></tr>
+    <tr>
+      <td><strong>Target tracking</strong><br><span style="color:var(--green);font-size:11.5px;font-weight:600">recommended</span></td>
+      <td>“Keep average CPU at 50%.” AWS works out the rest.</td>
+      <td>Almost always. Simplest and hardest to get wrong.</td>
+    </tr>
+    <tr>
+      <td><strong>Step scaling</strong></td>
+      <td>“CPU above 60% → add 1. Above 85% → add 3.”</td>
+      <td>You want a bigger reaction to a bigger problem.</td>
+    </tr>
+    <tr>
+      <td><strong>Simple scaling</strong></td>
+      <td>“CPU above 70% → add 1, then wait.”</td>
+      <td>Older and slower to react. Rarely the best choice now.</td>
+    </tr>
+    <tr>
+      <td><strong>Scheduled scaling</strong></td>
+      <td>“Every weekday at 9 a.m. set desired to 10.”</td>
+      <td>The spike is predictable by the clock, not by the metric.</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="scenario">
+    <span class="tag">Real situation — why scheduled scaling exists</span>
+    <p>Your college opens result downloads at exactly <strong>10 a.m.</strong> on a known date. Within thirty seconds, thousands of students hit the site.</p>
+    <p>Target tracking would react only <em>after</em> CPU climbs — and launching a new instance takes a couple of minutes. For the first few minutes the site would struggle.</p>
+    <p>So you also add a <strong>scheduled action</strong>: at 9:45 a.m., set desired capacity to 10. The servers are already warm and waiting before the first student clicks. <strong>You scale ahead of a spike you can predict.</strong></p>
+  </div>
+
+  <h3>Cooldown — why it pauses between actions</h3>
+
+  <div class="analogy">
+    <span class="tag">Analogy — give the new waiter a minute</span>
+    <p>The restaurant gets busy and the manager calls in one extra waiter. That waiter takes a few minutes to arrive, tie an apron and start taking orders.</p>
+    <p>If the manager checked again ten seconds later, the restaurant would still look overwhelmed — so she would call another waiter. And another. Soon fifteen waiters are standing around for a crowd that needed three.</p>
+    <p>So after calling someone, she waits. <strong>That wait is the cooldown.</strong></p>
+  </div>
+
+  <p>A new EC2 instance takes a couple of minutes to boot, run its user data script, and pass health checks. During that time the metric has not improved yet. The cooldown period — <strong>300 seconds by default</strong> — stops Auto Scaling from over-reacting to a problem it has already fixed.</p>
+
+  <hr class="divider">
+
+  <!-- ===== 6. SELF HEALING ===== -->
+  <h2><span class="n">6.</span> Self-Healing — the Feature Nobody Expects</h2>
+
+  <p>Auto Scaling is usually explained as “handles traffic spikes”. But the feature companies value most is something else entirely.</p>
+
+  <div class="key">
+    <span class="tag">The real headline</span>
+    <strong>If an instance becomes unhealthy, the Auto Scaling Group terminates it and launches a replacement — automatically.</strong> The desired capacity says 3, so it will keep making sure there are 3 healthy instances, forever.
+  </div>
+
+  <div class="scenario">
+    <span class="tag">Real situation — the server that nobody fixed</span>
+    <p>An instance runs out of memory at 2 a.m. and stops responding.</p>
+    <p>With a plain load balancer, the health check removes it from rotation. The site stays up — but now you are running on two servers instead of three, and somebody has to notice and fix it in the morning.</p>
+    <p>With an Auto Scaling Group, the broken instance is <strong>terminated and replaced with a fresh one within minutes</strong>. By morning the system is back at full strength and the only sign anything happened is a line in the activity history.</p>
+  </div>
+
+  <h3>Two kinds of health check — and this one catches people out</h3>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:24%">Health check type</th><th style="width:34%">What it actually checks</th><th>What it misses</th></tr>
+    <tr>
+      <td><strong>EC2</strong><br><span style="color:var(--muted);font-weight:400;font-size:11.5px">the default</span></td>
+      <td>Is the virtual machine running and reachable?</td>
+      <td class="no">A crashed web server on a perfectly healthy machine</td>
+    </tr>
+    <tr>
+      <td><strong>ELB</strong><br><span style="color:var(--green);font-weight:600;font-size:11.5px">turn this on</span></td>
+      <td>Is the load balancer's health check passing — is the website actually responding?</td>
+      <td class="ok">Nothing important</td>
+    </tr>
+  </table>
+  </div>
+
+  <div class="warn">
+    <span class="tag">A gap that looks like a bug</span>
+    By default an Auto Scaling Group uses <strong>only the EC2 health check</strong>. If Apache crashes but the instance keeps running, the EC2 check still says “healthy” — because the machine <em>is</em> healthy. The website is down, and Auto Scaling does nothing about it.
+    <br><br>
+    <strong>Fix:</strong> when attaching an ASG to a load balancer, turn on <strong>ELB health checks</strong>. Now the ASG replaces any instance whose website stops responding, not just instances that have crashed outright.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 7. TOGETHER ===== -->
+  <h2><span class="n">7.</span> Auto Scaling and the Load Balancer Together</h2>
+
+  <p>Each one alone is only half a solution:</p>
+
+  <ul>
+    <li>A <strong>load balancer alone</strong> shares traffic — but across a fixed, manually managed set of servers.</li>
+    <li>An <strong>ASG alone</strong> creates and destroys servers — but users have no single address to reach them at, and the addresses keep changing.</li>
+  </ul>
+
+  <p>Put together they complete each other. When the ASG launches an instance it <strong>automatically registers it into the target group</strong>, and when it terminates one it removes it first. You never touch the target group by hand again.</p>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 760 428" role="img" aria-label="Complete architecture. Users reach an Application Load Balancer which forwards to a target group. The target group's instances live inside an Auto Scaling Group spanning two availability zones, with three running instances and room to grow to six. A CloudWatch alarm on the left tells the Auto Scaling Group when to scale out or in." xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="asB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+        </marker>
+      </defs>
+
+      <rect x="300" y="12" width="160" height="42" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="380" y="39" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="600" fill="currentColor">Users</text>
+
+      <line x1="380" y1="56" x2="380" y2="74" stroke="currentColor" stroke-width="1.6" marker-end="url(#asB)"/>
+
+      <rect x="270" y="76" width="220" height="52" rx="8" fill="#d96a04" fill-opacity="0.14" stroke="#d96a04" stroke-width="2"/>
+      <text x="380" y="99" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="currentColor">Application Load Balancer</text>
+      <text x="380" y="117" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.75">one DNS name for everyone</text>
+
+      <line x1="380" y1="130" x2="380" y2="150" stroke="currentColor" stroke-width="1.6" marker-end="url(#asB)"/>
+
+      <rect x="290" y="152" width="180" height="46" rx="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <text x="380" y="174" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">Target Group</text>
+      <text x="380" y="190" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="currentColor" opacity="0.75">members managed by the ASG</text>
+
+      <line x1="380" y1="200" x2="380" y2="222" stroke="currentColor" stroke-width="1.6" marker-end="url(#asB)"/>
+
+      <!-- CLOUDWATCH -->
+      <rect x="14" y="88" width="150" height="56" rx="8" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <text x="89" y="112" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="currentColor">CloudWatch</text>
+      <text x="89" y="129" text-anchor="middle" font-family="Fira Code, monospace" font-size="10" fill="currentColor" opacity="0.75">avg CPU &gt; 70%</text>
+
+      <path d="M 89 146 L 89 250 L 56 250" fill="none" stroke="#d96a04" stroke-width="1.8" marker-end="url(#asB)" color="#d96a04"/>
+      <text x="100" y="196" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#d96a04">scale out / in</text>
+
+      <!-- ASG CONTAINER -->
+      <rect x="54" y="224" width="646" height="146" rx="10" fill="none" stroke="#d96a04" stroke-width="1.8" stroke-dasharray="7 4"/>
+      <text x="72" y="246" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#d96a04">Auto Scaling Group &nbsp;·&nbsp; min 2 &nbsp;·&nbsp; desired 3 &nbsp;·&nbsp; max 6</text>
+
+      <!-- AZ A -->
+      <rect x="76" y="258" width="296" height="96" rx="8" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.6"/>
+      <text x="92" y="276" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.7">us-east-1a</text>
+      <rect x="94" y="288" width="122" height="46" rx="6" fill="#1f9d55" fill-opacity="0.13" stroke="#1f9d55" stroke-width="1.6"/>
+      <text x="155" y="316" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor">EC2</text>
+      <rect x="230" y="288" width="122" height="46" rx="6" fill="#1f9d55" fill-opacity="0.13" stroke="#1f9d55" stroke-width="1.6"/>
+      <text x="291" y="316" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor">EC2</text>
+
+      <!-- AZ B -->
+      <rect x="388" y="258" width="296" height="96" rx="8" fill="none" stroke="currentColor" stroke-width="1.3" opacity="0.6"/>
+      <text x="404" y="276" font-family="Fira Code, monospace" font-size="10.5" fill="currentColor" opacity="0.7">us-east-1b</text>
+      <rect x="406" y="288" width="122" height="46" rx="6" fill="#1f9d55" fill-opacity="0.13" stroke="#1f9d55" stroke-width="1.6"/>
+      <text x="467" y="316" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="currentColor">EC2</text>
+      <rect x="542" y="288" width="122" height="46" rx="6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="5 4" opacity="0.5"/>
+      <text x="603" y="316" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" fill="currentColor" opacity="0.5">room to grow</text>
+
+      <text x="380" y="402" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="currentColor" opacity="0.7">New instances join the target group by themselves. Terminated ones are removed by themselves.</text>
+    </svg>
+    </div>
+    <figcaption><strong>This is the standard highly-available web architecture on AWS.</strong> One address that never changes, capacity that follows demand, instances spread across two data centres, and broken servers replaced without anyone being told.</figcaption>
+  </figure>
+
+  <div class="extra">
+    <span class="tag">Spreading across zones happens for free</span>
+    If you give the Auto Scaling Group two subnets in two Availability Zones, it balances instances between them on its own. Ask for 4 instances and you get roughly 2 in each zone. If one zone fails, the ASG launches replacements in the surviving zone.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 8. REVISION ===== -->
+  <h2><span class="n">8.</span> Quick Revision</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:26%">Term</th><th style="width:36%">Meaning</th><th>Analogy</th></tr>
+    <tr><td><strong>Auto Scaling Group</strong></td><td>Adds and removes EC2 instances with demand</td><td>Restaurant manager calling in waiters</td></tr>
+    <tr><td><strong>Minimum</strong></td><td>Never fewer than this</td><td>Always at least 2 staff on duty</td></tr>
+    <tr><td><strong>Desired</strong></td><td>How many right now</td><td>Staff working this shift</td></tr>
+    <tr><td><strong>Maximum</strong></td><td>Never more than this — budget limit</td><td>What the owner can afford to pay</td></tr>
+    <tr><td><strong>Launch Template</strong></td><td>The specification for each new instance</td><td>The written recipe</td></tr>
+    <tr><td><strong>Scale out / in</strong></td><td>Add / remove servers (horizontal)</td><td>Open / close billing counters</td></tr>
+    <tr><td><strong>Scale up / down</strong></td><td>Bigger / smaller server (vertical)</td><td>Hire a faster clerk</td></tr>
+    <tr><td><strong>Cooldown</strong></td><td>Wait before scaling again</td><td>Let the new waiter actually arrive</td></tr>
+    <tr><td><strong>Self-healing</strong></td><td>Unhealthy instances replaced automatically</td><td>Sick staff replaced without being asked</td></tr>
+  </table>
+  </div>
+
+  <h2><span class="n">9.</span> Exam Questions</h2>
+
+  <div class="t-scroll">
+  <table>
+    <tr><th style="width:54%">Question</th><th>Answer</th></tr>
+    <tr><td>What are the three capacity settings of an ASG?</td><td>Minimum, Desired, Maximum</td></tr>
+    <tr><td>Which one does Auto Scaling actually change?</td><td>Desired capacity</td></tr>
+    <tr><td>What is the purpose of the Maximum setting?</td><td>To cap cost — it stops runaway scaling</td></tr>
+    <tr><td>What tells an ASG that it is time to scale?</td><td>A CloudWatch alarm</td></tr>
+    <tr><td>What defines what a new instance will look like?</td><td>The Launch Template</td></tr>
+    <tr><td>Adding more servers is called…</td><td>Scaling out (horizontal scaling)</td></tr>
+    <tr><td>Making a server bigger is called…</td><td>Scaling up (vertical scaling)</td></tr>
+    <tr><td>Which kind does an ASG perform?</td><td>Horizontal — scale out and in</td></tr>
+    <tr><td>Name the recommended scaling policy type.</td><td>Target tracking</td></tr>
+    <tr><td>Which policy handles a spike you can predict by the clock?</td><td>Scheduled scaling</td></tr>
+    <tr><td>Why does a cooldown period exist?</td><td>To let new instances start before scaling again</td></tr>
+    <tr><td>What happens when an instance becomes unhealthy?</td><td>The ASG terminates it and launches a replacement</td></tr>
+    <tr><td>Which health check type should you enable with a load balancer?</td><td>ELB health checks — the EC2 check alone misses a crashed web server</td></tr>
+    <tr><td>Who registers a new instance with the target group?</td><td>The ASG does it automatically</td></tr>
+    <tr><td>Does an Auto Scaling Group cost anything by itself?</td><td>No — you pay only for the instances it launches</td></tr>
+  </table>
+  </div>
+
+  <div class="footer">
+    IIMT University, Meerut &nbsp;·&nbsp; Cloud Computing (AWS), 1st Semester &nbsp;·&nbsp; Module 09 — Auto Scaling Groups
+  </div>
+
+</body>
+</html>
