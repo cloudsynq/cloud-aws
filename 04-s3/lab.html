@@ -250,7 +250,7 @@
         <li><span class="inum">2</span><div>Click <b>Create bucket</b> (orange button, top right)</div></li>
         <li><span class="inum">3</span><div>Fill in the settings:
           <div class="code"><div class="code-bar"><span class="code-lang">Settings</span></div>
-            <pre><span class="k">Bucket name</span>     : <span class="s">iimt-lab-yourname-2026</span>  <span class="c"># make it unique — add your name</span>
+            <pre><span class="k">Bucket name</span>     : <span class="s">my-lab-yourname-2026</span>  <span class="c"># make it unique — add your name</span>
 <span class="k">AWS Region</span>      : <span class="v">Asia Pacific (Mumbai) ap-south-1</span>
 <span class="k">Block Public Access</span>: <span class="v">ON (all checkboxes ticked)</span>  <span class="c"># keep default</span>
 <span class="k">Versioning</span>      : <span class="v">Disabled</span>  <span class="c"># we will enable in Lab 4</span>
@@ -407,7 +407,7 @@
           <div class="code"><div class="code-bar"><span class="code-lang">index.html</span></div>
             <pre><span class="k">&lt;html&gt;</span>
   <span class="k">&lt;head&gt;</span>
-    <span class="k">&lt;title&gt;</span><span class="s">IIMT Cloud Lab</span><span class="k">&lt;/title&gt;</span>
+    <span class="k">&lt;title&gt;</span><span class="s">My Cloud Lab</span><span class="k">&lt;/title&gt;</span>
   <span class="k">&lt;/head&gt;</span>
   <span class="k">&lt;body</span> <span class="v">style</span>=<span class="s">"font-family:Arial; text-align:center; padding:60px; background:#fff8f0"</span><span class="k">&gt;</span>
     <span class="k">&lt;h1</span> <span class="v">style</span>=<span class="s">"color:#FF9900"</span><span class="k">&gt;</span><span class="s">🎉 My First S3 Website!</span><span class="k">&lt;/h1&gt;</span>
@@ -418,7 +418,7 @@
           </div>
         </div></li>
         <li><span class="inum">2</span><div>Create a NEW bucket for the website (website bucket needs different settings):<br>
-          <b>Name</b>: <code>iimt-website-yourname</code> · <b>Block Public Access: TURN OFF</b> → tick the acknowledgement box</div></li>
+          <b>Name</b>: <code>my-website-yourname</code> · <b>Block Public Access: TURN OFF</b> → tick the acknowledgement box</div></li>
         <li><span class="inum">3</span><div>Upload <b>index.html</b> to this new bucket</div></li>
         <li><span class="inum">4</span><div>Go to <b>Properties</b> tab → Scroll to <b>Static website hosting</b> → Click <b>Edit</b><br>
           Enable it → Index document: <code>index.html</code> → Error document: <code>error.html</code> → <b>Save</b></div></li>
@@ -430,7 +430,7 @@
     <span class="k">"Effect"</span>: <span class="s">"Allow"</span>,
     <span class="k">"Principal"</span>: <span class="s">"*"</span>,
     <span class="k">"Action"</span>: <span class="s">"s3:GetObject"</span>,
-    <span class="k">"Resource"</span>: <span class="s">"arn:aws:s3:::iimt-website-yourname/*"</span>
+    <span class="k">"Resource"</span>: <span class="s">"arn:aws:s3:::my-website-yourname/*"</span>
                   <span class="c">// replace with your actual bucket name</span>
   }]
 }</pre>
@@ -442,7 +442,7 @@
       <div class="box ok">
         <div class="box-h">Expected Result</div>
         You should see your HTML page in the browser at a URL like:<br>
-        <code>http://iimt-website-yourname.s3-website.ap-south-1.amazonaws.com</code><br><br>
+        <code>http://my-website-yourname.s3-website.ap-south-1.amazonaws.com</code><br><br>
         ✅ A real website — no server, no Nginx, no EC2 — just S3!
       </div>
     </div>

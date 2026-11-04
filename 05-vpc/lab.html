@@ -190,7 +190,7 @@
         <li><span class="inum">1</span><div>Go to <b>Your VPCs</b> → Click <b>Create VPC</b></div></li>
         <li><span class="inum">2</span><div>Select <b>VPC only</b> (not "VPC and more")<br>
           <div class="code"><div class="code-bar"><span class="code-lang">VPC Settings</span></div>
-            <pre><span class="k">Name tag</span>       : <span class="s">iimt-vpc</span>
+            <pre><span class="k">Name tag</span>       : <span class="s">my-vpc</span>
 <span class="k">IPv4 CIDR</span>      : <span class="v">10.0.0.0/16</span>
 <span class="k">IPv6 CIDR</span>      : <span class="v">No IPv6</span>
 <span class="k">Tenancy</span>        : <span class="v">Default</span></pre>
@@ -199,7 +199,7 @@
         <li><span class="inum">3</span><div>Click <b>Create VPC</b></div></li>
         <li><span class="inum">4</span><div>Your new VPC appears in the list. Notice: <b>State = Available</b>, but there are <b>no subnets</b> yet. The network exists but it's completely empty.</div></li>
       </ul>
-      <div class="box ok"><div class="box-h">Expected Result</div>VPC <code>iimt-vpc</code> created with CIDR 10.0.0.0/16. State: Available. No subnets, no IGW, no route table yet — just the container.</div>
+      <div class="box ok"><div class="box-h">Expected Result</div>VPC <code>my-vpc</code> created with CIDR 10.0.0.0/16. State: Available. No subnets, no IGW, no route table yet — just the container.</div>
     </div>
   </div>
 
@@ -220,9 +220,9 @@
       <p style="margin:14px 0 8px; font-weight:600; color:var(--acc2);">Part A — Create Public Subnet</p>
       <ul class="ilist">
         <li><span class="inum">1</span><div>Click <b>Subnets</b> (left sidebar) → <b>Create subnet</b></div></li>
-        <li><span class="inum">2</span><div>Select VPC: <b>iimt-vpc</b>
+        <li><span class="inum">2</span><div>Select VPC: <b>my-vpc</b>
           <div class="code"><div class="code-bar"><span class="code-lang">Public Subnet</span></div>
-            <pre><span class="k">Name</span>             : <span class="s">iimt-public-subnet</span>
+            <pre><span class="k">Name</span>             : <span class="s">my-public-subnet</span>
 <span class="k">Availability Zone</span>: <span class="v">ap-south-1a</span>
 <span class="k">IPv4 CIDR</span>        : <span class="v">10.0.1.0/24</span></pre>
           </div>
@@ -230,7 +230,7 @@
         <li><span class="inum">3</span><div>Click <b>Add new subnet</b> to add the private one in the same create operation</div></li>
         <li><span class="inum">4</span><div>Add Private Subnet:
           <div class="code"><div class="code-bar"><span class="code-lang">Private Subnet</span></div>
-            <pre><span class="k">Name</span>             : <span class="s">iimt-private-subnet</span>
+            <pre><span class="k">Name</span>             : <span class="s">my-private-subnet</span>
 <span class="k">Availability Zone</span>: <span class="v">ap-south-1b</span>
 <span class="k">IPv4 CIDR</span>        : <span class="v">10.0.2.0/24</span></pre>
           </div>
@@ -240,11 +240,11 @@
 
       <p style="margin:20px 0 8px; font-weight:600; color:var(--acc2);">Part B — Create and Attach Internet Gateway</p>
       <ul class="ilist">
-        <li><span class="inum">6</span><div>Click <b>Internet Gateways</b> → <b>Create internet gateway</b><br>Name: <b>iimt-igw</b> → Click <b>Create</b></div></li>
-        <li><span class="inum">7</span><div>With <b>iimt-igw</b> selected → Click <b>Actions</b> → <b>Attach to VPC</b> → Select <b>iimt-vpc</b> → Click <b>Attach</b></div></li>
+        <li><span class="inum">6</span><div>Click <b>Internet Gateways</b> → <b>Create internet gateway</b><br>Name: <b>my-igw</b> → Click <b>Create</b></div></li>
+        <li><span class="inum">7</span><div>With <b>my-igw</b> selected → Click <b>Actions</b> → <b>Attach to VPC</b> → Select <b>my-vpc</b> → Click <b>Attach</b></div></li>
       </ul>
 
-      <div class="box ok"><div class="box-h">Checkpoint</div>You now have: iimt-vpc → 2 subnets (public 10.0.1.0/24 + private 10.0.2.0/24) → iimt-igw attached. But traffic can't reach the internet yet — we need route tables.</div>
+      <div class="box ok"><div class="box-h">Checkpoint</div>You now have: my-vpc → 2 subnets (public 10.0.1.0/24 + private 10.0.2.0/24) → my-igw attached. But traffic can't reach the internet yet — we need route tables.</div>
     </div>
   </div>
 
@@ -264,26 +264,26 @@
       <ul class="ilist">
         <li><span class="inum">1</span><div>Click <b>Route Tables</b> (left sidebar) → <b>Create route table</b>
           <div class="code"><div class="code-bar"><span class="code-lang">Route Table</span></div>
-            <pre><span class="k">Name</span>: <span class="s">iimt-public-rt</span>
-<span class="k">VPC</span> : <span class="v">iimt-vpc</span></pre>
+            <pre><span class="k">Name</span>: <span class="s">my-public-rt</span>
+<span class="k">VPC</span> : <span class="v">my-vpc</span></pre>
           </div>
         </div></li>
-        <li><span class="inum">2</span><div>Click on <b>iimt-public-rt</b> → Click <b>Routes</b> tab → <b>Edit routes</b> → <b>Add route</b>
+        <li><span class="inum">2</span><div>Click on <b>my-public-rt</b> → Click <b>Routes</b> tab → <b>Edit routes</b> → <b>Add route</b>
           <div class="code"><div class="code-bar"><span class="code-lang">Add Route — Internet Traffic</span></div>
             <pre><span class="k">Destination</span>: <span class="v">0.0.0.0/0</span>   <span class="c"># means "all internet traffic"</span>
-<span class="k">Target</span>     : <span class="v">Internet Gateway</span> → <span class="s">iimt-igw</span></pre>
+<span class="k">Target</span>     : <span class="v">Internet Gateway</span> → <span class="s">my-igw</span></pre>
           </div>
         </div></li>
         <li><span class="inum">3</span><div>Click <b>Save changes</b></div></li>
         <li><span class="inum">4</span><div>Now associate this route table with the public subnet:<br>
-          Click <b>Subnet associations</b> tab → <b>Edit subnet associations</b> → Select <b>iimt-public-subnet</b> → <b>Save</b></div></li>
+          Click <b>Subnet associations</b> tab → <b>Edit subnet associations</b> → Select <b>my-public-subnet</b> → <b>Save</b></div></li>
         <li><span class="inum">5</span><div><b>Enable auto-assign public IP</b> on the public subnet:<br>
-          Go to <b>Subnets</b> → Select <b>iimt-public-subnet</b> → <b>Actions</b> → <b>Edit subnet settings</b> → Enable <b>Auto-assign public IPv4 address</b> → <b>Save</b></div></li>
+          Go to <b>Subnets</b> → Select <b>my-public-subnet</b> → <b>Actions</b> → <b>Edit subnet settings</b> → Enable <b>Auto-assign public IPv4 address</b> → <b>Save</b></div></li>
       </ul>
       <div class="box ok">
         <div class="box-h">Architecture So Far</div>
-        Internet → iimt-igw → iimt-public-rt → <strong>iimt-public-subnet (10.0.1.0/24)</strong> ✅ Internet accessible<br>
-        <em>No route to internet</em> → <strong>iimt-private-subnet (10.0.2.0/24)</strong> ✅ Private only
+        Internet → my-igw → my-public-rt → <strong>my-public-subnet (10.0.1.0/24)</strong> ✅ Internet accessible<br>
+        <em>No route to internet</em> → <strong>my-private-subnet (10.0.2.0/24)</strong> ✅ Private only
       </div>
     </div>
   </div>
@@ -303,17 +303,17 @@
       </div>
       <ul class="ilist">
         <li><span class="inum">1</span><div>Go to <b>EC2</b> → <b>Launch Instance</b><br>
-          Name: <b>iimt-web-server</b> · AMI: <b>Amazon Linux 2023</b> · Instance type: <b>t2.micro</b></div></li>
+          Name: <b>my-web-server</b> · AMI: <b>Amazon Linux 2023</b> · Instance type: <b>t2.micro</b></div></li>
         <li><span class="inum">2</span><div>Under <b>Network settings</b> → Click <b>Edit</b>
           <div class="code"><div class="code-bar"><span class="code-lang">Network Settings</span></div>
-            <pre><span class="k">VPC</span>              : <span class="v">iimt-vpc</span>
-<span class="k">Subnet</span>           : <span class="s">iimt-public-subnet</span>
+            <pre><span class="k">VPC</span>              : <span class="v">my-vpc</span>
+<span class="k">Subnet</span>           : <span class="s">my-public-subnet</span>
 <span class="k">Auto-assign public IP</span>: <span class="v">Enable</span></pre>
           </div>
         </div></li>
         <li><span class="inum">3</span><div>Create a new Security Group:
           <div class="code"><div class="code-bar"><span class="code-lang">Security Group Rules</span></div>
-            <pre><span class="k">Name</span>: <span class="s">iimt-web-sg</span>
+            <pre><span class="k">Name</span>: <span class="s">my-web-sg</span>
 
 <span class="c"># INBOUND RULES:</span>
 <span class="k">Type</span> : <span class="v">SSH</span>    · Port <span class="s">22</span>  · Source: <span class="v">My IP</span>    <span class="c"># Admin access</span>
@@ -327,11 +327,11 @@ yum update -y
 yum install -y httpd
 systemctl start httpd
 systemctl enable httpd
-echo "&lt;h1&gt;Hello from IIMT VPC Lab!&lt;/h1&gt;" &gt; /var/www/html/index.html</pre>
+echo "&lt;h1&gt;Hello from my VPC Lab!&lt;/h1&gt;" &gt; /var/www/html/index.html</pre>
           </div>
         </div></li>
         <li><span class="inum">5</span><div>Click <b>Launch Instance</b> → Wait ~2 minutes for it to start</div></li>
-        <li><span class="inum">6</span><div>Copy the <b>Public IPv4 address</b> → Open in browser → You should see <strong>"Hello from IIMT VPC Lab!"</strong></div></li>
+        <li><span class="inum">6</span><div>Copy the <b>Public IPv4 address</b>→ Open in browser → You should see <strong>"Hello from my VPC Lab!"</strong></div></li>
       </ul>
       <div class="box ok">
         <div class="box-h">Success!</div>
@@ -432,7 +432,7 @@ echo "&lt;h1&gt;Hello from IIMT VPC Lab!&lt;/h1&gt;" &gt; /var/www/html/index.ht
 
   <footer class="foot" style="margin-top:32px;">
     <b>AWS VPC — Virtual Private Cloud</b><br>
-    Lab Presentation · Cloud Computing, 1st Semester
+    Lab Presentation · Cloud Computing
   </footer>
 
 </div>

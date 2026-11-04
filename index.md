@@ -1,7 +1,7 @@
 # Cloud Computing — AWS
 
-**IIMT University, Meerut** · 1st Semester
-Trainer: Sahil Kumar
+Theory notes, hands-on labs and the full syllabus — free and open to everyone.
+By **Sahil Kumar** · AWS Certified Solutions Architect – Associate
 
 [← All courses](https://cloudsynq.github.io/)
 
